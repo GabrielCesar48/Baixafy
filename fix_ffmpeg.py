@@ -1,268 +1,292 @@
-# fix_ffmpeg.py - Script para diagnosticar e corrigir problemas com FFmpeg
+# fix_ffmpeg_django.py - Script para diagnosticar e corrigir FFmpeg no Django
 import os
 import sys
 import subprocess
 import shutil
 from pathlib import Path
 
-def check_ffmpeg_installation():
+def verificar_ffmpeg_detalhado():
     """
-    Verifica se FFmpeg está instalado e acessível.
+    Verifica FFmpeg de forma detalhada para Django.
     
     Returns:
-        dict: Status da instalação do FFmpeg
+        dict: Status completo do FFmpeg
     """
+    print("🔍 DIAGNÓSTICO COMPLETO DO FFMPEG\n")
+    print("=" * 50)
+    
     status = {
-        'installed': False,
-        'path': None,
-        'version': None,
-        'errors': []
+        'ffmpeg_no_path': False,
+        'ffmpeg_path': None,
+        'ffmpeg_funciona': False,
+        'ffmpeg_versao': None,
+        'erro_django': None
     }
     
-    # Método 1: Verificar se está no PATH
+    # 1. Verificar se está no PATH
+    print("1️⃣ Verificando PATH do sistema...")
     ffmpeg_path = shutil.which('ffmpeg')
+    
     if ffmpeg_path:
-        status['installed'] = True
-        status['path'] = ffmpeg_path
-        print(f"✅ FFmpeg encontrado no PATH: {ffmpeg_path}")
-        
-        # Tentar obter versão
-        try:
-            result = subprocess.run(['ffmpeg', '-version'], 
-                                  capture_output=True, text=True, timeout=10)
-            if result.returncode == 0:
-                version_line = result.stdout.split('\n')[0]
-                status['version'] = version_line
-                print(f"✅ Versão: {version_line}")
-            else:
-                status['errors'].append("Erro ao obter versão do FFmpeg")
-        except subprocess.TimeoutExpired:
-            status['errors'].append("Timeout ao executar FFmpeg")
-        except Exception as e:
-            status['errors'].append(f"Erro ao executar FFmpeg: {e}")
+        print(f"   ✅ FFmpeg encontrado: {ffmpeg_path}")
+        status['ffmpeg_no_path'] = True
+        status['ffmpeg_path'] = ffmpeg_path
     else:
-        print("❌ FFmpeg não encontrado no PATH")
-        status['errors'].append("FFmpeg não está no PATH do sistema")
+        print("   ❌ FFmpeg NÃO está no PATH")
         
-        # Método 2: Verificar locais comuns no Windows
-        common_paths = [
+        # Verificar locais comuns no Windows
+        print("   🔍 Procurando em locais comuns...")
+        caminhos_comuns = [
             r'C:\ffmpeg\bin\ffmpeg.exe',
             r'C:\Program Files\ffmpeg\bin\ffmpeg.exe',
             r'C:\Program Files (x86)\ffmpeg\bin\ffmpeg.exe',
             Path.home() / 'ffmpeg' / 'bin' / 'ffmpeg.exe',
         ]
         
-        for path in common_paths:
-            if Path(path).exists():
-                status['installed'] = True
-                status['path'] = str(path)
-                print(f"✅ FFmpeg encontrado em: {path}")
+        for caminho in caminhos_comuns:
+            if Path(caminho).exists():
+                print(f"   ✅ Encontrado em: {caminho}")
+                status['ffmpeg_path'] = str(caminho)
                 break
+        else:
+            print("   ❌ FFmpeg não encontrado em locais comuns")
+    
+    # 2. Testar execução
+    if status['ffmpeg_path']:
+        print(f"\n2️⃣ Testando execução do FFmpeg...")
+        try:
+            # Teste 1: Versão
+            result = subprocess.run(
+                [status['ffmpeg_path'], '-version'], 
+                capture_output=True, 
+                text=True, 
+                timeout=10
+            )
+            
+            if result.returncode == 0:
+                versao = result.stdout.split('\n')[0]
+                print(f"   ✅ FFmpeg funciona: {versao}")
+                status['ffmpeg_funciona'] = True
+                status['ffmpeg_versao'] = versao
+            else:
+                print(f"   ❌ Erro ao executar: {result.stderr}")
+                status['erro_django'] = result.stderr
+                
+        except subprocess.TimeoutExpired:
+            print("   ❌ Timeout ao executar FFmpeg")
+            status['erro_django'] = "Timeout"
+        except Exception as e:
+            print(f"   ❌ Erro: {e}")
+            status['erro_django'] = str(e)
+    
+    # 3. Simular chamada do Django
+    print(f"\n3️⃣ Simulando como Django chama FFmpeg...")
+    try:
+        # Exatamente como o Django tenta chamar
+        result = subprocess.run(
+            ['ffmpeg', '-version'], 
+            capture_output=True, 
+            timeout=5
+        )
+        
+        if result.returncode == 0:
+            print("   ✅ Django conseguiria chamar FFmpeg")
+        else:
+            print("   ❌ Django NÃO conseguiria chamar FFmpeg")
+            print(f"   Motivo: {result.stderr.decode() if result.stderr else 'Erro desconhecido'}")
+            
+    except FileNotFoundError:
+        print("   ❌ Django NÃO conseguiria chamar FFmpeg")
+        print("   Motivo: Comando 'ffmpeg' não encontrado")
+        status['erro_django'] = "Comando não encontrado no PATH"
+    except Exception as e:
+        print(f"   ❌ Erro: {e}")
+        status['erro_django'] = str(e)
     
     return status
 
-def add_to_path(ffmpeg_dir):
+def corrigir_path_windows(caminho_ffmpeg):
     """
-    Adiciona diretório do FFmpeg ao PATH do sistema (Windows).
+    Adiciona FFmpeg ao PATH do usuário no Windows.
     
     Args:
-        ffmpeg_dir (str): Diretório contendo o executável do FFmpeg
+        caminho_ffmpeg (str): Caminho para a pasta bin do FFmpeg
     """
     try:
         import winreg
         
-        # Abrir chave do registro para variáveis de ambiente do usuário
-        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, 
-                           'Environment', 0, winreg.KEY_ALL_ACCESS)
+        # Abrir chave do registro
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER, 
+            'Environment', 
+            0, 
+            winreg.KEY_ALL_ACCESS
+        )
         
         try:
             # Obter PATH atual
-            current_path, _ = winreg.QueryValueEx(key, 'PATH')
+            path_atual, _ = winreg.QueryValueEx(key, 'PATH')
         except FileNotFoundError:
-            current_path = ''
+            path_atual = ''
         
         # Verificar se já está no PATH
-        if ffmpeg_dir.lower() not in current_path.lower():
-            new_path = f"{current_path};{ffmpeg_dir}" if current_path else ffmpeg_dir
-            winreg.SetValueEx(key, 'PATH', 0, winreg.REG_EXPAND_SZ, new_path)
-            print(f"✅ {ffmpeg_dir} adicionado ao PATH")
-            print("⚠️  Reinicie o terminal ou IDE para que as mudanças tenham efeito")
+        if caminho_ffmpeg.lower() not in path_atual.lower():
+            novo_path = f"{path_atual};{caminho_ffmpeg}" if path_atual else caminho_ffmpeg
+            winreg.SetValueEx(key, 'PATH', 0, winreg.REG_EXPAND_SZ, novo_path)
+            print(f"✅ {caminho_ffmpeg} adicionado ao PATH")
+            print("⚠️  IMPORTANTE: Reinicie o VSCode/PyCharm e o terminal")
+            return True
         else:
-            print(f"✅ {ffmpeg_dir} já está no PATH")
+            print(f"✅ {caminho_ffmpeg} já está no PATH")
+            return True
         
         winreg.CloseKey(key)
-        return True
         
     except Exception as e:
         print(f"❌ Erro ao modificar PATH: {e}")
         return False
 
-def download_ffmpeg():
+def criar_helper_django():
     """
-    Instrui o usuário sobre como baixar e instalar FFmpeg.
+    Cria um helper para o Django encontrar FFmpeg.
     """
-    print("\n🔽 Como instalar FFmpeg no Windows:")
-    print("\n1. MÉTODO AUTOMÁTICO (Recomendado):")
-    print("   - Instale Chocolatey: https://chocolatey.org/install")
-    print("   - Execute: choco install ffmpeg")
-    print("\n2. MÉTODO MANUAL:")
-    print("   - Acesse: https://ffmpeg.org/download.html#build-windows")
-    print("   - Baixe 'Windows builds by BtbN'")
-    print("   - Extraia para C:\\ffmpeg")
-    print("   - Adicione C:\\ffmpeg\\bin ao PATH do sistema")
-    print("\n3. MÉTODO VIA SCOOP:")
-    print("   - Instale Scoop: https://scoop.sh/")
-    print("   - Execute: scoop install ffmpeg")
-
-def create_django_helper():
-    """
-    Cria um helper para Django usar FFmpeg.
-    """
-    helper_code = '''
-# ffmpeg_helper.py - Adicione ao seu app Django
+    helper_code = '''# ffmpeg_helper.py - Adicione ao seu app Django
 import os
 import shutil
 import subprocess
+from pathlib import Path
 from django.conf import settings
 
 class FFmpegHelper:
-    """Helper para trabalhar com FFmpeg no Django."""
+    """Helper para o Django encontrar e usar FFmpeg."""
     
     def __init__(self):
-        self.ffmpeg_path = self._find_ffmpeg()
+        self.ffmpeg_path = self._encontrar_ffmpeg()
     
-    def _find_ffmpeg(self):
-        """Encontra o executável do FFmpeg."""
-        # Verificar se está configurado no settings
+    def _encontrar_ffmpeg(self):
+        """Encontra FFmpeg de todas as formas possíveis."""
+        
+        # 1. Verificar se está configurado no settings.py
         if hasattr(settings, 'FFMPEG_PATH'):
             if os.path.exists(settings.FFMPEG_PATH):
                 return settings.FFMPEG_PATH
         
-        # Verificar PATH do sistema
+        # 2. Verificar PATH do sistema
         ffmpeg_path = shutil.which('ffmpeg')
         if ffmpeg_path:
             return ffmpeg_path
         
-        # Verificar locais comuns no Windows
-        common_paths = [
+        # 3. Verificar locais comuns no Windows
+        caminhos_comuns = [
             r'C:\\ffmpeg\\bin\\ffmpeg.exe',
             r'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe',
             r'C:\\Program Files (x86)\\ffmpeg\\bin\\ffmpeg.exe',
+            Path.home() / 'ffmpeg' / 'bin' / 'ffmpeg.exe',
         ]
         
-        for path in common_paths:
-            if os.path.exists(path):
-                return path
+        for caminho in caminhos_comuns:
+            if Path(caminho).exists():
+                return str(caminho)
         
         return None
     
-    def is_available(self):
+    def esta_disponivel(self):
         """Verifica se FFmpeg está disponível."""
         if not self.ffmpeg_path:
             return False
         
         try:
-            subprocess.run([self.ffmpeg_path, '-version'], 
-                         capture_output=True, check=True, timeout=5)
+            subprocess.run(
+                [self.ffmpeg_path, '-version'], 
+                capture_output=True, 
+                check=True, 
+                timeout=5
+            )
             return True
         except:
             return False
     
-    def convert_audio(self, input_file, output_file, bitrate='320k'):
-        """
-        Converte arquivo de áudio usando FFmpeg.
-        
-        Args:
-            input_file (str): Caminho do arquivo de entrada
-            output_file (str): Caminho do arquivo de saída
-            bitrate (str): Bitrate do áudio (padrão: 320k)
-            
-        Returns:
-            bool: True se conversão foi bem-sucedida
-        """
-        if not self.is_available():
-            raise Exception("FFmpeg não está disponível")
-        
-        try:
-            cmd = [
-                self.ffmpeg_path,
-                '-i', input_file,
-                '-codec:a', 'libmp3lame',
-                '-b:a', bitrate,
-                '-y',  # Sobrescrever arquivo se existir
-                output_file
-            ]
-            
-            subprocess.run(cmd, check=True, capture_output=True)
-            return True
-            
-        except subprocess.CalledProcessError as e:
-            raise Exception(f"Erro na conversão: {e}")
+    def obter_comando_base(self):
+        """Retorna o comando base para usar com subprocess."""
+        return self.ffmpeg_path if self.ffmpeg_path else 'ffmpeg'
 
-# Como usar em suas views:
-# ffmpeg = FFmpegHelper()
-# if ffmpeg.is_available():
-#     ffmpeg.convert_audio('input.wav', 'output.mp3')
+# Instância global
+ffmpeg_helper = FFmpegHelper()
+
+def verificar_ffmpeg_para_django():
+    """
+    Função para usar nas suas views para verificar FFmpeg.
+    
+    Returns:
+        dict: Status do FFmpeg para o Django
+    """
+    helper = FFmpegHelper()
+    
+    return {
+        'disponivel': helper.esta_disponivel(),
+        'caminho': helper.ffmpeg_path,
+        'comando': helper.obter_comando_base()
+    }
 '''
     
     with open('ffmpeg_helper.py', 'w', encoding='utf-8') as f:
         f.write(helper_code)
     
     print("✅ Arquivo 'ffmpeg_helper.py' criado!")
-    print("   Adicione este helper ao seu projeto Django")
+    print("📋 Agora adicione ao seu projeto:")
+    print("   1. Copie ffmpeg_helper.py para o seu app")
+    print("   2. Importe: from .ffmpeg_helper import verificar_ffmpeg_para_django")
 
 def main():
-    """Função principal do diagnóstico."""
-    print("🔍 DIAGNÓSTICO DO FFMPEG PARA DJANGO\n")
-    print("=" * 50)
+    """Função principal."""
+    print("🔧 CORRETOR DE FFMPEG PARA DJANGO\n")
     
-    # Verificar instalação
-    status = check_ffmpeg_installation()
+    # Fazer diagnóstico
+    status = verificar_ffmpeg_detalhado()
     
-    if status['installed']:
-        print(f"\n✅ FFmpeg está instalado!")
-        print(f"📍 Localização: {status['path']}")
-        if status['version']:
-            print(f"📋 {status['version']}")
+    print(f"\n" + "=" * 50)
+    print("📋 RESUMO:")
+    
+    if status['ffmpeg_funciona']:
+        print("✅ FFmpeg está instalado e funcionando")
+        print(f"📍 Localização: {status['ffmpeg_path']}")
         
-        # Testar execução
-        print("\n🧪 Testando execução...")
-        try:
-            result = subprocess.run(['ffmpeg', '-f', 'lavfi', '-i', 'testsrc=duration=1:size=1x1', 
-                                   '-f', 'null', '-'], capture_output=True, timeout=10)
-            if result.returncode == 0:
-                print("✅ FFmpeg funcionando corretamente!")
-            else:
-                print("⚠️  FFmpeg executou mas retornou erro")
-        except Exception as e:
-            print(f"❌ Erro ao testar FFmpeg: {e}")
+        if not status['ffmpeg_no_path']:
+            print("\n⚠️  PROBLEMA IDENTIFICADO:")
+            print("FFmpeg não está no PATH do sistema!")
+            
+            # Oferecer correção
+            caminho_bin = str(Path(status['ffmpeg_path']).parent)
+            resposta = input(f"\n❓ Adicionar {caminho_bin} ao PATH? (s/n): ")
+            
+            if resposta.lower() in ['s', 'sim', 'y', 'yes']:
+                if corrigir_path_windows(caminho_bin):
+                    print("\n🎉 CORREÇÃO APLICADA!")
+                    print("⚠️  REINICIE o VSCode/PyCharm e o terminal")
+                else:
+                    print("\n❌ Falha na correção automática")
+                    print("🔧 CORREÇÃO MANUAL:")
+                    print(f"   1. Abra Configurações do Sistema > Variáveis de Ambiente")
+                    print(f"   2. Adicione {caminho_bin} ao PATH")
+                    print(f"   3. Reinicie o terminal")
     
     else:
-        print("\n❌ FFmpeg NÃO está instalado ou acessível")
-        for error in status['errors']:
-            print(f"   • {error}")
-        
-        download_ffmpeg()
-        
-        # Se encontrado em local não padrão, oferecer para adicionar ao PATH
-        if status['path'] and sys.platform.startswith('win'):
-            ffmpeg_dir = str(Path(status['path']).parent)
-            response = input(f"\n❓ Adicionar {ffmpeg_dir} ao PATH? (s/n): ")
-            if response.lower() in ['s', 'sim', 'y', 'yes']:
-                add_to_path(ffmpeg_dir)
+        print("❌ PROBLEMAS ENCONTRADOS:")
+        if not status['ffmpeg_path']:
+            print("   • FFmpeg não está instalado")
+        elif status['erro_django']:
+            print(f"   • Erro: {status['erro_django']}")
     
-    # Criar helper Django
-    print("\n" + "=" * 50)
-    response = input("❓ Criar helper Django para FFmpeg? (s/n): ")
-    if response.lower() in ['s', 'sim', 'y', 'yes']:
-        create_django_helper()
+    # Criar helper
+    print(f"\n" + "=" * 50)
+    resposta = input("❓ Criar helper Django para FFmpeg? (s/n): ")
+    if resposta.lower() in ['s', 'sim', 'y', 'yes']:
+        criar_helper_django()
     
-    print("\n🎯 PRÓXIMOS PASSOS:")
-    print("1. Se FFmpeg não estiver instalado, siga as instruções acima")
-    print("2. Reinicie seu terminal/IDE após instalar")
-    print("3. Adicione o ffmpeg_helper.py ao seu projeto Django")
-    print("4. Configure FFMPEG_PATH no settings.py se necessário")
-    print("5. Teste novamente sua aplicação")
+    print(f"\n🎯 PRÓXIMOS PASSOS:")
+    print("1. Reinicie o terminal/IDE")
+    print("2. Teste novamente sua aplicação Django")
+    print("3. Se ainda não funcionar, use o ffmpeg_helper.py")
 
 if __name__ == '__main__':
     main()
