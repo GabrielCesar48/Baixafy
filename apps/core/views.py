@@ -1,269 +1,287 @@
-# apps/core/views.py
+# apps/core/views.py - VERSÃO SIMPLIFICADA
 import json
 import os
-from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
+import uuid
+import zipfile
+import threading
+import time
+from pathlib import Path
+from django.shortcuts import render
 from django.http import JsonResponse, FileResponse, Http404
 from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth import get_user_model
 from django.conf import settings
-import subprocess
-import shutil
+from django.contrib import messages
 
-from apps.users.forms import DownloadForm
-from apps.baixador.services import spotify_service
-from apps.users.models import DownloadHistory
+from apps.baixador.services import get_spotify_service
 
-User = get_user_model()
-
-
-def verificar_ffmpeg():
-    """Verifica se FFmpeg está disponível no sistema."""
-    try:
-        # Verifica se FFmpeg está no PATH
-        ffmpeg_path = shutil.which('ffmpeg')
-        if ffmpeg_path:
-            print(f"FFmpeg encontrado em: {ffmpeg_path}")
-            return True
-        else:
-            print("FFmpeg não encontrado no PATH")
-            return False
-    except Exception as e:
-        print(f"Erro ao verificar FFmpeg: {e}")
-        return False
+# Dicionário global para armazenar progresso dos downloads
+download_progress_tracker = {}
 
 def home(request):
-    """Página inicial do BaixaFy."""
-    return render(request, 'home.html')
-
-
-@login_required
-def painel(request):
-    """Painel principal do usuário logado."""
-    user = request.user
-    
+    """
+    Página única do BaixaFy - Interface simples para downloads.
+    """
     # Verificar se serviço está funcionando
+    service = get_spotify_service()
     service_status = None
-    if spotify_service:
-        service_status = spotify_service.health_check()
+    
+    if service:
+        service_status = service.health_check()
     
     context = {
-        'user': user,
-        'is_premium': user.is_premium_active(),
-        'days_remaining': user.days_remaining(),
-        'can_download': user.can_download(),
-        'free_downloads_used': user.free_downloads_used,
-        'total_downloads': user.total_downloads,
-        'download_form': DownloadForm(),
-        'recent_downloads': DownloadHistory.objects.filter(user=user, success=True).order_by('-download_date')[:5],
-        'service_status': service_status
+        'service_status': service_status,
     }
     
-    # CORREÇÃO: Mostrar aviso apenas se realmente houver problema
-    if not spotify_service or (service_status and service_status.get('status') == 'error'):
-        if service_status and 'FFmpeg' in service_status.get('message', ''):
-            messages.warning(request, '⚠️ FFmpeg não está instalado. Execute install_ffmpeg.bat como Administrador.')
-        else:
-            messages.warning(request, '⚠️ Serviço de download temporariamente indisponível.')
+    # Mostrar aviso se houver problema
+    if not service or (service_status and service_status.get('status') == 'error'):
+        messages.warning(
+            request, 
+            '⚠️ Serviço temporariamente indisponível. Verifique se FFmpeg está instalado.'
+        )
     
-    return render(request, 'painel.html', context)
+    return render(request, 'home.html', context)
 
 
-@login_required
-def pagamento(request):
-    """Página de simulação de pagamento."""
-    if request.method == 'POST':
-        request.user.activate_premium(days=30)
-        messages.success(request, f"🎉 Premium ativado com sucesso! 30 dias de downloads ilimitados.")
-        return redirect('painel')
-    
-    return render(request, 'pagamento.html')
-
-
-@login_required
-@csrf_exempt
-def get_spotify_info(request):
-    """
-    CORREÇÃO: Endpoint que agora suporta playlists também.
-    """
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'message': 'Método não permitido'})
-    
-    # Aceitar JSON ou form data
-    if request.content_type == 'application/json':
-        try:
-            data = json.loads(request.body)
-            spotify_url = data.get('spotify_url', '').strip()
-        except json.JSONDecodeError:
-            return JsonResponse({'success': False, 'message': 'JSON inválido'})
-    else:
-        spotify_url = request.POST.get('spotify_url', '').strip()
-    
-    if not spotify_url:
-        return JsonResponse({'success': False, 'message': 'URL obrigatória'})
-    
-    # CORREÇÃO: Verificar se serviço está disponível
-    if not spotify_service:
-        return JsonResponse({
-            'success': False,
-            'message': 'Serviço indisponível. Verifique se FFmpeg está instalado.',
-            'error_type': 'service_unavailable'
-        })
-    
-    try:
-        # Verificar tipo de URL
-        url_info = spotify_service.extract_spotify_info(spotify_url)
-        if 'error' in url_info:
-            return JsonResponse({'success': False, 'message': url_info['error']})
-        
-        # CORREÇÃO: Processar músicas E playlists
-        if url_info['type'] == 'track':
-            metadata = spotify_service.get_track_metadata(spotify_url)
-            
-            if 'error' in metadata:
-                return JsonResponse({'success': False, 'message': metadata['error']})
-            
-            return JsonResponse({
-                'success': True,
-                'type': 'track',
-                'track_info': {
-                    'name': metadata['name'],
-                    'artists': metadata['artists'],
-                    'album': metadata['album'],
-                    'duration': metadata['duration'],
-                    'cover_url': metadata['cover_url'],
-                    'year': metadata.get('year', 'N/A')
-                }
-            })
-            
-        elif url_info['type'] == 'playlist':
-            # NOVO: Suporte a playlists
-            playlist_info = spotify_service.get_playlist_info(spotify_url)
-            
-            if 'error' in playlist_info:
-                return JsonResponse({'success': False, 'message': playlist_info['error']})
-            
-            return JsonResponse({
-                'success': True,
-                'type': 'playlist',
-                'playlist_info': {
-                    'name': playlist_info['name'],
-                    'total_tracks': playlist_info['total_tracks'],
-                    'tracks': playlist_info['tracks'][:10],  # Primeiras 10
-                    'owner': playlist_info.get('owner', 'Desconhecido')
-                }
-            })
-            
-        elif url_info['type'] == 'album':
-            # Usar mesmo método de playlist
-            album_info = spotify_service.get_playlist_info(spotify_url)
-            
-            if 'error' in album_info:
-                return JsonResponse({'success': False, 'message': album_info['error']})
-            
-            return JsonResponse({
-                'success': True,
-                'type': 'album',
-                'album_info': {
-                    'name': album_info['name'],
-                    'total_tracks': album_info['total_tracks'],
-                    'tracks': album_info['tracks'][:10],
-                    'artist': album_info.get('owner', 'Desconhecido')
-                }
-            })
-        else:
-            return JsonResponse({'success': False, 'message': 'Tipo não suportado'})
-        
-    except Exception as e:
-        print(f"❌ Erro em get_spotify_info: {str(e)}")
-        return JsonResponse({'success': False, 'message': 'Erro interno', 'error_type': 'internal_error'})
-
-
-@login_required
 @csrf_exempt
 def download_music(request):
-    """Endpoint para baixar música do Spotify."""
+    """
+    Inicia o download de música/playlist via AJAX.
+    Funciona igual ao script baixar.py, mas via web.
+    """
     if request.method != 'POST':
-        return JsonResponse({'success': False, 'message': 'Método não permitido'})
-    
-    # Aceitar JSON ou form data
-    if request.content_type == 'application/json':
-        try:
-            data = json.loads(request.body)
-            spotify_url = data.get('spotify_url', '').strip()
-        except json.JSONDecodeError:
-            return JsonResponse({'success': False, 'message': 'JSON inválido'})
-    else:
-        spotify_url = request.POST.get('spotify_url', '').strip()
-    
-    user = request.user
-    
-    if not spotify_url:
-        return JsonResponse({'success': False, 'message': 'URL obrigatória'})
-    
-    if not spotify_service:
-        return JsonResponse({
-            'success': False,
-            'message': 'Serviço indisponível. FFmpeg pode estar ausente.',
-            'error_type': 'service_unavailable'
-        })
-    
-    if not user.can_download():
-        return JsonResponse({
-            'success': False,
-            'message': '⛔ Limite atingido! Assine Premium para downloads ilimitados.',
-            'needs_subscription': True
-        })
+        return JsonResponse({'error': 'Método não permitido'}, status=405)
     
     try:
-        result = spotify_service.download_track(spotify_url, user)
+        data = json.loads(request.body)
+        spotify_url = data.get('url', '').strip()
         
-        if 'error' in result:
-            return JsonResponse({'success': False, 'message': result['error']})
+        if not spotify_url:
+            return JsonResponse({'error': 'URL do Spotify é obrigatória'}, status=400)
+        
+        # Validar URL do Spotify
+        if not _is_valid_spotify_url(spotify_url):
+            return JsonResponse({'error': 'URL inválida. Use links do Spotify.'}, status=400)
+        
+        # Gerar ID único para este download
+        download_id = str(uuid.uuid4())
+        
+        # Inicializar progresso
+        download_progress_tracker[download_id] = {
+            'status': 'starting',
+            'progress': 0,
+            'message': 'Iniciando download...',
+            'current_track': '',
+            'total_tracks': 0,
+            'completed_tracks': 0,
+            'download_path': None,
+            'error': None
+        }
+        
+        # Iniciar download em thread separada
+        thread = threading.Thread(
+            target=_process_download,
+            args=(spotify_url, download_id)
+        )
+        thread.daemon = True
+        thread.start()
         
         return JsonResponse({
             'success': True,
-            'message': f'🎵 Download concluído: {result["file_name"]}',
-            'download_url': result['download_url'],
-            'file_name': result['file_name'],
-            'metadata': result['metadata'],
-            'is_premium_download': result['is_premium_download']
+            'download_id': download_id,
+            'message': 'Download iniciado com sucesso!'
         })
         
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Dados JSON inválidos'}, status=400)
     except Exception as e:
-        print(f"❌ Erro em download_music: {str(e)}")
-        return JsonResponse({'success': False, 'message': 'Erro interno no download'})
+        return JsonResponse({'error': f'Erro interno: {str(e)}'}, status=500)
 
 
-@login_required
+def download_progress(request):
+    """
+    Retorna o progresso atual de um download via AJAX.
+    """
+    download_id = request.GET.get('id')
+    
+    if not download_id or download_id not in download_progress_tracker:
+        return JsonResponse({'error': 'Download não encontrado'}, status=404)
+    
+    progress_data = download_progress_tracker[download_id]
+    
+    return JsonResponse({
+        'status': progress_data['status'],
+        'progress': progress_data['progress'],
+        'message': progress_data['message'],
+        'current_track': progress_data['current_track'],
+        'total_tracks': progress_data['total_tracks'],
+        'completed_tracks': progress_data['completed_tracks'],
+        'download_path': progress_data['download_path'],
+        'error': progress_data['error']
+    })
+
+
 def download_file(request, filename):
-    """Serve arquivos de download para usuários autenticados."""
+    """
+    Serve arquivo para download e remove após o download.
+    """
+    file_path = Path(settings.MEDIA_ROOT) / filename
+    
+    if not file_path.exists():
+        raise Http404("Arquivo não encontrado")
+    
     try:
-        file_path = os.path.join(settings.MEDIA_ROOT, filename)
+        response = FileResponse(
+            open(file_path, 'rb'),
+            as_attachment=True,
+            filename=filename
+        )
         
-        if not os.path.exists(file_path):
-            raise Http404("Arquivo não encontrado")
+        # Agendar remoção do arquivo após 1 hora
+        threading.Timer(3600, _cleanup_file, args=[file_path]).start()
         
-        # Verificar se usuário tem permissão
-        download_history = DownloadHistory.objects.filter(
-            user=request.user,
-            file_path__contains=filename
-        ).first()
-        
-        if not download_history:
-            raise Http404("Sem permissão para este arquivo")
-        
-        response = FileResponse(open(file_path, 'rb'), as_attachment=True, filename=filename)
         return response
         
     except Exception as e:
-        print(f"❌ Erro ao servir arquivo {filename}: {str(e)}")
-        raise Http404("Erro ao acessar arquivo")
+        raise Http404(f"Erro ao baixar arquivo: {str(e)}")
 
 
-@login_required  
-def historico(request):
-    """Página de histórico simples."""
-    downloads = DownloadHistory.objects.filter(user=request.user).order_by('-download_date')
-    return render(request, 'historico.html', {'downloads': downloads})
+def _is_valid_spotify_url(url):
+    """
+    Valida se a URL é do Spotify.
+    """
+    return ('open.spotify.com' in url and 
+            ('track/' in url or 'playlist/' in url or 'album/' in url))
+
+
+def _process_download(spotify_url, download_id):
+    """
+    Processa o download em background.
+    Replica EXATAMENTE o comportamento do script baixar.py.
+    """
+    try:
+        service = get_spotify_service()
+        if not service:
+            _update_progress(download_id, 'error', 0, 'Serviço indisponível')
+            return
+        
+        # Verificar health do serviço
+        health = service.health_check()
+        if health['status'] == 'error':
+            _update_progress(download_id, 'error', 0, health['message'])
+            return
+        
+        # Atualizar progresso: iniciando
+        _update_progress(download_id, 'downloading', 5, 'Verificando URL...')
+        
+        # Criar pasta temporária para o download
+        temp_dir = Path(settings.MEDIA_ROOT) / f"temp_{download_id}"
+        temp_dir.mkdir(exist_ok=True)
+        
+        # Atualizar progresso
+        _update_progress(download_id, 'downloading', 15, 'Iniciando download via SpotDL...')
+        
+        # USAR SPOTDL DIRETAMENTE (igual ao script baixar.py)
+        downloaded_files = service.download_spotify_url(spotify_url, str(temp_dir))
+        
+        if not downloaded_files:
+            _update_progress(download_id, 'error', 0, 'Nenhuma música foi baixada. Verifique a URL.')
+            _cleanup_temp_dir(temp_dir)
+            return
+        
+        # Simular progresso durante o download
+        total_files = len(downloaded_files)
+        for i, file_path in enumerate(downloaded_files, 1):
+            progress = 15 + (i * 65 // total_files)  # 15-80%
+            file_name = Path(file_path).stem
+            _update_progress(
+                download_id,
+                'downloading',
+                progress,
+                f'Processando: {file_name}',
+                file_name,
+                total_files,
+                i
+            )
+            time.sleep(0.5)  # Simular tempo de processamento
+        
+        # Criar arquivo ZIP
+        _update_progress(download_id, 'zipping', 85, 'Criando arquivo ZIP...')
+        
+        zip_filename = f"baixafy_download_{download_id[:8]}.zip"
+        zip_path = Path(settings.MEDIA_ROOT) / zip_filename
+        
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for file_path in downloaded_files:
+                file_path_obj = Path(file_path)
+                if file_path_obj.exists():
+                    # Manter apenas o nome do arquivo no ZIP
+                    zipf.write(file_path_obj, file_path_obj.name)
+        
+        # Limpar arquivos temporários
+        _cleanup_temp_dir(temp_dir)
+        
+        # Download concluído
+        _update_progress(
+            download_id, 
+            'completed', 
+            100, 
+            f'Download concluído! {len(downloaded_files)} música(s) baixada(s).',
+            download_path=zip_filename
+        )
+        
+    except Exception as e:
+        _update_progress(download_id, 'error', 0, f'Erro no download: {str(e)}')
+        # Tentar limpar pasta temporária mesmo com erro
+        try:
+            temp_dir = Path(settings.MEDIA_ROOT) / f"temp_{download_id}"
+            _cleanup_temp_dir(temp_dir)
+        except:
+            pass
+
+
+def _cleanup_temp_dir(temp_dir):
+    """
+    Remove pasta temporária e todos os arquivos.
+    """
+    try:
+        if temp_dir.exists():
+            for file_path in temp_dir.iterdir():
+                file_path.unlink()
+            temp_dir.rmdir()
+    except Exception as e:
+        print(f"Erro ao limpar pasta temporária: {e}")
+
+
+def _update_progress(download_id, status, progress, message, current_track='', total_tracks=0, completed_tracks=0, download_path=None):
+    """
+    Atualiza o progresso do download.
+    """
+    if download_id in download_progress_tracker:
+        progress_data = download_progress_tracker[download_id]
+        progress_data.update({
+            'status': status,
+            'progress': progress,
+            'message': message,
+            'current_track': current_track,
+        })
+        
+        if total_tracks > 0:
+            progress_data['total_tracks'] = total_tracks
+            
+        if completed_tracks > 0:
+            progress_data['completed_tracks'] = completed_tracks
+            
+        if download_path:
+            progress_data['download_path'] = download_path
+
+
+def _cleanup_file(file_path):
+    """
+    Remove arquivo após delay.
+    """
+    try:
+        if Path(file_path).exists():
+            Path(file_path).unlink()
+            print(f"Arquivo removido: {file_path}")
+    except Exception as e:
+        print(f"Erro ao remover arquivo {file_path}: {e}")

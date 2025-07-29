@@ -1,157 +1,93 @@
-<!-- BASE TEMPLATE - templates/base.html -->
+<!-- templates/base.html - VERSÃO SIMPLIFICADA -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}BaixaFy - Seu Spotify Downloader{% endblock %}</title>
+    <title>{% block title %}BaixaFy - Download de Músicas do Spotify{% endblock %}</title>
     
     <!-- Bootstrap CSS -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
     <style>
-        :root {
-            --primary-color: #1db954;
-            --secondary-color: #191414;
-            --accent-color: #1ed760;
-        }
-        
         body {
-            background: linear-gradient(135deg, #191414 0%, #1db954 100%);
+            background: linear-gradient(135deg, #1db954, #191414);
             min-height: 100vh;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Arial', sans-serif;
         }
         
         .navbar-brand {
             font-weight: bold;
-            font-size: 1.8rem;
-            color: var(--accent-color) !important;
+            font-size: 1.5rem;
         }
         
-        .navbar {
-            background-color: rgba(25, 20, 20, 0.95) !important;
-            backdrop-filter: blur(10px);
+        .btn-spotify {
+            background: #1db954;
+            border: none;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-spotify:hover {
+            background: #1ed760;
+            color: white;
+            transform: translateY(-2px);
         }
         
         .card {
             border: none;
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            background: rgba(255, 255, 255, 0.95);
         }
         
-        .btn-spotify {
-            background: var(--primary-color);
-            border: none;
-            color: white;
-            border-radius: 25px;
-            padding: 12px 30px;
-            font-weight: 600;
-            transition: all 0.3s ease;
+        .progress-container {
+            display: none;
+            margin-top: 20px;
         }
         
-        .btn-spotify:hover {
-            background: var(--accent-color);
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(29, 185, 84, 0.4);
+        .progress {
+            height: 25px;
+            border-radius: 15px;
         }
         
-        .status-badge {
-            border-radius: 20px;
-            padding: 8px 16px;
-            font-weight: 600;
+        .download-complete {
+            display: none;
+            margin-top: 20px;
+        }
+        
+        .track-info {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
             font-size: 0.9rem;
         }
         
-        .premium-badge {
-            background: linear-gradient(45deg, #FFD700, #FFA500);
-            color: #333;
+        .logo {
+            color: #1db954;
+            text-decoration: none;
         }
         
-        .free-badge {
-            background: #6c757d;
-            color: white;
-        }
-        
-        .download-form {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 15px;
-            padding: 20px;
-            backdrop-filter: blur(10px);
-        }
-        
-        .service-status {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1050;
+        .logo:hover {
+            color: #1ed760;
+            text-decoration: none;
         }
     </style>
 </head>
 <body>
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark">
+    <!-- Navbar simples -->
+    <nav class="navbar navbar-dark">
         <div class="container">
-            <a class="navbar-brand" href="{% url 'home' %}">
+            <a class="navbar-brand logo" href="{% url 'home' %}">
                 <i class="fas fa-music"></i> BaixaFy
             </a>
-            
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    {% if user.is_authenticated %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'painel' %}">
-                                <i class="fas fa-tachometer-alt"></i> Painel
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'historico' %}">
-                                <i class="fas fa-history"></i> Histórico
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'logout' %}">
-                                <i class="fas fa-sign-out-alt"></i> Sair
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <span class="nav-link">
-                                <i class="fas fa-user"></i> {{ user.username }}
-                            </span>
-                        </li>
-                    {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'login' %}">
-                                <i class="fas fa-sign-in-alt"></i> Entrar
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'register' %}">
-                                <i class="fas fa-user-plus"></i> Registrar
-                            </a>
-                        </li>
-                    {% endif %}
-                </ul>
-            </div>
+            <span class="navbar-text">
+                <small>Download simples de músicas do Spotify</small>
+            </span>
         </div>
     </nav>
-
-    <!-- Status do Serviço -->
-    {% if not ffmpeg_available %}
-    <div class="service-status">
-        <div class="alert alert-warning alert-dismissible fade show" role="alert">
-            <i class="fas fa-exclamation-triangle"></i>
-            <strong>Serviço Temporariamente Indisponível</strong><br>
-            FFmpeg não detectado. Alguns downloads podem falhar.
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    </div>
-    {% endif %}
 
     <!-- Messages -->
     {% if messages %}
@@ -172,15 +108,287 @@
     </main>
 
     <!-- Footer -->
-    <footer class="text-center text-white mt-5 py-4">
+    <footer class="text-center text-white mt-5 py-3">
         <div class="container">
-            <p>&copy; 2024 BaixaFy - Desenvolvido com <i class="fas fa-heart text-danger"></i> para música</p>
+            <p>&copy; 2024 BaixaFy - Download simples e rápido</p>
             <p><small>Este serviço não é afiliado ao Spotify.</small></p>
         </div>
     </footer>
 
     <!-- Bootstrap JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    
+    {% block extra_js %}
+    {% endblock %}
 </body>
 </html>
 
+<!-- ====================================== -->
+
+<!-- apps/core/templates/home.html - PÁGINA ÚNICA -->
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <!-- Header -->
+        <div class="text-center text-white mb-5">
+            <h1 class="display-4 mb-3">
+                <i class="fas fa-download"></i> BaixaFy
+            </h1>
+            <p class="lead">Cole o link da música ou playlist do Spotify e baixe agora!</p>
+        </div>
+
+        <!-- Card principal -->
+        <div class="card">
+            <div class="card-body p-5">
+                <!-- Formulário de download -->
+                <div id="download-form">
+                    <h4 class="text-center mb-4">
+                        <i class="fab fa-spotify text-success"></i> Baixar do Spotify
+                    </h4>
+                    
+                    <div class="mb-3">
+                        <label for="spotify-url" class="form-label">
+                            <i class="fas fa-link"></i> URL do Spotify
+                        </label>
+                        <input 
+                            type="url" 
+                            class="form-control form-control-lg" 
+                            id="spotify-url"
+                            placeholder="https://open.spotify.com/track/..."
+                            required
+                        >
+                        <div class="form-text">
+                            Cole aqui o link da música, playlist ou álbum do Spotify
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button 
+                            type="button" 
+                            class="btn btn-spotify btn-lg" 
+                            id="download-btn"
+                            onclick="startDownload()"
+                        >
+                            <i class="fas fa-download"></i> Baixar Agora
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Container de progresso -->
+                <div class="progress-container" id="progress-container">
+                    <h5 class="text-center mb-3">
+                        <i class="fas fa-spinner fa-spin"></i> Baixando...
+                    </h5>
+                    
+                    <div class="progress mb-3">
+                        <div 
+                            class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                            id="progress-bar"
+                            style="width: 0%"
+                        ></div>
+                    </div>
+                    
+                    <div class="track-info" id="track-info">
+                        <div id="progress-message">Iniciando download...</div>
+                        <div id="track-details" style="display: none;">
+                            <small class="text-muted">
+                                <span id="current-track"></span> 
+                                (<span id="completed-tracks">0</span>/<span id="total-tracks">0</span>)
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Container de download completo -->
+                <div class="download-complete" id="download-complete">
+                    <div class="text-center">
+                        <h5 class="text-success mb-3">
+                            <i class="fas fa-check-circle"></i> Download Concluído!
+                        </h5>
+                        
+                        <div class="d-grid gap-2">
+                            <button 
+                                class="btn btn-success btn-lg" 
+                                id="download-file-btn"
+                                onclick="downloadFile()"
+                            >
+                                <i class="fas fa-file-archive"></i> Baixar Arquivo ZIP
+                            </button>
+                            
+                            <button 
+                                class="btn btn-outline-secondary" 
+                                onclick="resetForm()"
+                            >
+                                <i class="fas fa-plus"></i> Baixar Outra Música
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Instruções -->
+        <div class="row mt-5">
+            <div class="col-md-4 text-center text-white mb-3">
+                <i class="fas fa-copy fa-2x mb-2 text-info"></i>
+                <h6>1. Copie o Link</h6>
+                <small>No Spotify, clique em "Compartilhar" e copie o link</small>
+            </div>
+            <div class="col-md-4 text-center text-white mb-3">
+                <i class="fas fa-paste fa-2x mb-2 text-warning"></i>
+                <h6>2. Cole Aqui</h6>
+                <small>Cole o link no campo acima e clique em "Baixar"</small>
+            </div>
+            <div class="col-md-4 text-center text-white mb-3">
+                <i class="fas fa-download fa-2x mb-2 text-success"></i>
+                <h6>3. Baixe o ZIP</h6>
+                <small>Escolha onde salvar seu arquivo com as músicas</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentDownloadId = null;
+let progressInterval = null;
+
+function startDownload() {
+    const url = document.getElementById('spotify-url').value.trim();
+    
+    if (!url) {
+        alert('Por favor, cole um link do Spotify');
+        return;
+    }
+    
+    if (!url.includes('open.spotify.com')) {
+        alert('Por favor, use um link válido do Spotify');
+        return;
+    }
+    
+    // Mostrar progresso
+    document.getElementById('download-form').style.display = 'none';
+    document.getElementById('progress-container').style.display = 'block';
+    
+    // Iniciar download via AJAX
+    fetch('/api/download/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({url: url})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            currentDownloadId = data.download_id;
+            startProgressTracking();
+        } else {
+            showError(data.error || 'Erro ao iniciar download');
+        }
+    })
+    .catch(error => {
+        showError('Erro de conexão: ' + error.message);
+    });
+}
+
+function startProgressTracking() {
+    if (progressInterval) {
+        clearInterval(progressInterval);
+    }
+    
+    progressInterval = setInterval(() => {
+        if (!currentDownloadId) return;
+        
+        fetch(`/api/progress/?id=${currentDownloadId}`)
+        .then(response => response.json())
+        .then(data => {
+            updateProgress(data);
+            
+            if (data.status === 'completed') {
+                clearInterval(progressInterval);
+                showDownloadComplete(data.download_path);
+            } else if (data.status === 'error') {
+                clearInterval(progressInterval);
+                showError(data.error || 'Erro no download');
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao obter progresso:', error);
+        });
+    }, 1000); // Atualizar a cada segundo
+}
+
+function updateProgress(data) {
+    const progressBar = document.getElementById('progress-bar');
+    const progressMessage = document.getElementById('progress-message');
+    const trackDetails = document.getElementById('track-details');
+    
+    // Atualizar barra de progresso
+    progressBar.style.width = data.progress + '%';
+    
+    // Atualizar mensagem
+    progressMessage.textContent = data.message;
+    
+    // Mostrar detalhes das tracks se disponível
+    if (data.total_tracks > 1) {
+        document.getElementById('current-track').textContent = data.current_track;
+        document.getElementById('completed-tracks').textContent = data.completed_tracks;
+        document.getElementById('total-tracks').textContent = data.total_tracks;
+        trackDetails.style.display = 'block';
+    }
+}
+
+function showDownloadComplete(downloadPath) {
+    document.getElementById('progress-container').style.display = 'none';
+    document.getElementById('download-complete').style.display = 'block';
+    
+    // Configurar botão de download
+    const downloadBtn = document.getElementById('download-file-btn');
+    downloadBtn.onclick = () => {
+        window.location.href = `/download/${downloadPath}/`;
+    };
+}
+
+function showError(message) {
+    document.getElementById('progress-container').style.display = 'none';
+    document.getElementById('download-form').style.display = 'block';
+    alert('Erro: ' + message);
+}
+
+function resetForm() {
+    document.getElementById('download-complete').style.display = 'none';
+    document.getElementById('download-form').style.display = 'block';
+    document.getElementById('spotify-url').value = '';
+    currentDownloadId = null;
+    
+    if (progressInterval) {
+        clearInterval(progressInterval);
+    }
+}
+
+function downloadFile() {
+    // Implementado via onclick do botão
+}
+
+// Função para obter CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}
