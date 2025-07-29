@@ -38,39 +38,32 @@ class SpotifyDownloadService:
             # Tentar criar arquivo de configuração se não existir
             self._ensure_config_exists()
             
-            # Obter configuração padrão
-            config = get_config()
-            
-            # Personalizar configurações
-            config["output"] = str(self.download_path)
-            config["format"] = "mp3"
-            config["bitrate"] = "192k"
-            config["threads"] = 4
-            config["song_format"] = "{artists} - {title}"
-            config["restrict_filenames"] = True
-            config["overwrite"] = "metadata"
-            
-            # Tentar inicializar com credenciais do Spotify
+            # Inicializar spotDL sem parâmetro config (CORREÇÃO DO BUG)
             try:
                 client_id = os.getenv('SPOTIFY_CLIENT_ID')
                 client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
                 
                 if client_id and client_secret:
+                    # Inicializar com credenciais (SEM parâmetro config)
                     self.spotdl = Spotdl(
                         client_id=client_id,
-                        client_secret=client_secret,
-                        config=config
+                        client_secret=client_secret
                     )
                     print("✅ SpotDL inicializado com credenciais do Spotify")
                 else:
-                    # Modo público (sem credenciais)
-                    self.spotdl = Spotdl(config=config)
+                    # Modo público (sem credenciais e SEM parâmetro config)
+                    self.spotdl = Spotdl()
                     print("⚠️ SpotDL inicializado sem credenciais (modo público)")
                     
             except Exception as e:
                 print(f"⚠️ Erro ao inicializar com credenciais: {e}")
                 # Fallback para modo público
-                self.spotdl = Spotdl(config=config)
+                try:
+                    self.spotdl = Spotdl()
+                    print("✅ SpotDL inicializado em modo fallback")
+                except Exception as fallback_error:
+                    print(f"❌ Erro no fallback: {fallback_error}")
+                    raise
                 
         except Exception as e:
             print(f"❌ Erro crítico ao configurar SpotDL: {e}")
@@ -85,6 +78,9 @@ class SpotifyDownloadService:
             # Tentar obter config (isso falhará se não existir)
             config = get_config()
             print("✅ Arquivo de configuração do SpotDL encontrado")
+            
+            # Personalizar configurações importantes
+            self._update_config_if_needed(config)
             
         except Exception as config_error:
             print("⚠️ Arquivo de configuração não encontrado. Criando...")
@@ -102,13 +98,68 @@ class SpotifyDownloadService:
                     print("✅ Arquivo de configuração criado com sucesso")
                 else:
                     print(f"⚠️ Aviso ao criar config: {result.stderr}")
-                    # Criar config manualmente
+                    # Criar config manualmente como fallback
                     self._create_manual_config()
                     
             except (subprocess.TimeoutExpired, FileNotFoundError) as e:
                 print(f"⚠️ Erro ao executar spotdl --generate-config: {e}")
                 # Criar config manualmente
                 self._create_manual_config()
+    
+    def _update_config_if_needed(self, config):
+        """
+        Atualiza configurações importantes se necessário.
+        """
+        try:
+            # Configurações importantes para o BaixaFy
+            updates_needed = False
+            
+            if config.get("output") != str(self.download_path):
+                config["output"] = str(self.download_path)
+                updates_needed = True
+            
+            if config.get("format") != "mp3":
+                config["format"] = "mp3"
+                updates_needed = True
+                
+            if config.get("bitrate") != "192k":
+                config["bitrate"] = "192k"
+                updates_needed = True
+            
+            # Configurações otimizadas
+            optimal_settings = {
+                "song_format": "{artists} - {title}",
+                "restrict_filenames": True,
+                "overwrite": "metadata",
+                "threads": 4,
+                "audio_provider": "youtube-music"
+            }
+            
+            for key, value in optimal_settings.items():
+                if config.get(key) != value:
+                    config[key] = value
+                    updates_needed = True
+            
+            if updates_needed:
+                self._save_config(config)
+                print("✅ Configuração do SpotDL atualizada")
+                
+        except Exception as e:
+            print(f"⚠️ Erro ao atualizar configuração: {e}")
+    
+    def _save_config(self, config):
+        """
+        Salva a configuração no arquivo.
+        """
+        try:
+            config_dir = Path.home() / '.spotdl'
+            config_file = config_dir / 'config.json'
+            
+            with open(config_file, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2)
+                
+        except Exception as e:
+            print(f"⚠️ Erro ao salvar configuração: {e}")
     
     def _create_manual_config(self):
         """
@@ -119,21 +170,25 @@ class SpotifyDownloadService:
             config_dir = Path.home() / '.spotdl'
             config_dir.mkdir(exist_ok=True)
             
+            # Criar diretório de cache
+            cache_dir = config_dir / 'cache'
+            cache_dir.mkdir(exist_ok=True)
+            
             config_file = config_dir / 'config.json'
             
-            # Configuração padrão
+            # Configuração padrão otimizada para BaixaFy
             default_config = {
-                "client_id": "",
-                "client_secret": "",
+                "client_id": os.getenv('SPOTIFY_CLIENT_ID', ''),
+                "client_secret": os.getenv('SPOTIFY_CLIENT_SECRET', ''),
                 "user_auth": False,
-                "cache_path": str(config_dir / 'cache'),
+                "cache_path": str(cache_dir),
                 "audio_provider": "youtube-music",
                 "lyrics_provider": "musixmatch",
                 "playlist_numbering": False,
                 "scan_for_songs": False,
                 "m3u": False,
                 "output": str(self.download_path),
-                "overwrite": "skip",
+                "overwrite": "metadata",
                 "format": "mp3",
                 "bitrate": "192k",
                 "ffmpeg": "ffmpeg",
@@ -268,119 +323,125 @@ class SpotifyDownloadService:
             error_msg = str(e)
             if 'Config file not found' in error_msg:
                 return {'error': 'Erro de configuração do SpotDL. Tente novamente.'}
-            elif 'No results found' in error_msg:
-                return {'error': 'Música não encontrada ou não disponível'}
             else:
-                return {'error': f'Erro ao obter informações: {error_msg}'}
+                return {'error': f'Erro ao obter metadados: {error_msg}'}
     
-    def download_track(self, url: str, user: CustomUser) -> Dict:
+    def can_user_download(self, user: CustomUser) -> Tuple[bool, str]:
         """
-        Baixa uma única música do Spotify.
+        Verifica se o usuário pode fazer download.
+        
+        Args:
+            user (CustomUser): Usuário a ser verificado
+            
+        Returns:
+            Tuple[bool, str]: (pode_baixar, mensagem)
+        """
+        # Verificar se é usuário premium válido
+        if user.is_premium_active():
+            return True, "Usuário premium ativo"
+        
+        # Verificar quantos downloads gratuitos já fez
+        free_downloads = DownloadHistory.objects.filter(
+            user=user,
+            is_premium_download=False
+        ).count()
+        
+        # Limite de downloads gratuitos
+        FREE_DOWNLOAD_LIMIT = 1
+        
+        if free_downloads >= FREE_DOWNLOAD_LIMIT:
+            return False, f"Limite de {FREE_DOWNLOAD_LIMIT} download gratuito atingido. Assine para downloads ilimitados!"
+        
+        return True, f"Download gratuito disponível ({FREE_DOWNLOAD_LIMIT - free_downloads} restante)"
+    
+    def baixar_musica(self, url: str, user: CustomUser) -> Dict:
+        """
+        Realiza o download de uma música do Spotify.
         
         Args:
             url (str): URL da música no Spotify
-            user (CustomUser): Usuário solicitando o download
+            user (CustomUser): Usuário que está fazendo o download
             
         Returns:
-            Dict: Resultado do download com informações do arquivo
+            Dict: Resultado do download com caminho do arquivo ou erro
         """
         try:
-            # Verificar se usuário pode baixar
-            if not user.can_download():
-                return {
-                    'error': 'Limite de downloads atingido. Assine o plano premium!',
-                    'needs_subscription': True
-                }
+            # Verificar permissões do usuário
+            can_download, message = self.can_user_download(user)
+            if not can_download:
+                return {'error': message}
+            
+            # Verificar se spotDL está configurado
+            if not hasattr(self, 'spotdl'):
+                return {'error': 'Serviço de download não está configurado'}
+            
+            # Extrair informações da URL
+            url_info = self.extract_spotify_info(url)
+            if 'error' in url_info:
+                return url_info
             
             # Obter metadados primeiro
             metadata = self.get_track_metadata(url)
             if 'error' in metadata:
                 return metadata
             
-            # Preparar informações para download
-            track_name = metadata['name']
-            artist_name = ', '.join(metadata['artists'])
-            album_name = metadata['album']
-            
-            print(f"🎵 Iniciando download: {artist_name} - {track_name}")
-            
-            # Baixar a música usando spotDL
-            songs = self.spotdl.search([url])
-            if not songs:
-                return {'error': 'Música não encontrada para download'}
+            print(f"🎵 Iniciando download: {metadata.get('artists', 'N/A')} - {metadata.get('name', 'N/A')}")
             
             # Realizar download
-            downloaded_files, errors = self.spotdl.download(songs)
+            songs = self.spotdl.search([url])
+            if not songs:
+                return {'error': 'Música não encontrada'}
             
-            if errors:
-                error_msg = '; '.join([str(err) for err in errors])
-                print(f"❌ Erros durante download: {error_msg}")
-                
-                # Registrar falha no histórico
-                DownloadHistory.objects.create(
-                    user=user,
-                    spotify_url=url,
-                    track_name=track_name,
-                    artist_name=artist_name,
-                    album_name=album_name,
-                    success=False,
-                    error_message=error_msg
-                )
-                
-                return {'error': f'Erro no download: {error_msg}'}
+            # Download da música
+            download_result = self.spotdl.download(songs)
+            
+            # Procurar arquivo baixado
+            downloaded_files = []
+            for item in self.download_path.iterdir():
+                if item.is_file() and item.suffix.lower() == '.mp3':
+                    # Verificar se foi criado recentemente (últimos 2 minutos)
+                    if (item.stat().st_mtime > (os.path.getmtime(__file__) - 120)):
+                        downloaded_files.append(item)
             
             if not downloaded_files:
-                return {'error': 'Nenhum arquivo foi baixado'}
+                return {'error': 'Arquivo de áudio não foi encontrado após o download'}
             
-            file_path = downloaded_files[0]
-            filename = os.path.basename(file_path)
+            # Pegar o arquivo mais recente
+            downloaded_file = max(downloaded_files, key=lambda x: x.stat().st_mtime)
             
-            print(f"✅ Download concluído: {filename}")
-            
-            # Registrar sucesso no histórico
+            # Registrar download no histórico
+            is_premium = user.is_premium_active()
             DownloadHistory.objects.create(
                 user=user,
                 spotify_url=url,
-                track_name=track_name,
-                artist_name=artist_name,
-                album_name=album_name,
-                file_path=str(file_path),
-                file_size=os.path.getsize(file_path) if os.path.exists(file_path) else 0,
-                success=True
+                song_name=metadata.get('name', 'Desconhecido'),
+                artist_name=', '.join(metadata.get('artists', ['Desconhecido'])),
+                file_path=str(downloaded_file),
+                is_premium_download=is_premium
             )
             
-            # Atualizar contador do usuário
-            user.use_download()
+            print(f"✅ Download concluído: {downloaded_file.name}")
             
             return {
                 'success': True,
-                'file_path': str(file_path),
-                'filename': filename,
+                'file_path': str(downloaded_file),
+                'file_name': downloaded_file.name,
+                'download_url': self.get_file_url(str(downloaded_file)),
                 'metadata': metadata,
-                'download_url': self.get_file_url(str(file_path))
+                'is_premium_download': is_premium
             }
             
         except Exception as e:
             error_msg = str(e)
-            print(f"❌ Erro durante download: {error_msg}")
+            print(f"❌ Erro no download: {error_msg}")
             
-            # Registrar falha no histórico
-            DownloadHistory.objects.create(
-                user=user,
-                spotify_url=url,
-                track_name=url,
-                artist_name='Desconhecido',
-                success=False,
-                error_message=error_msg
-            )
-            
-            # Tratar erros específicos
-            if 'Config file not found' in error_msg:
-                return {'error': 'Erro de configuração. Tente novamente em alguns instantes.'}
-            elif 'ffmpeg' in error_msg.lower():
-                return {'error': 'Erro de conversão de áudio. Verifique se o FFmpeg está instalado.'}
+            # Mensagens de erro mais amigáveis
+            if 'ffmpeg' in error_msg.lower():
+                return {'error': 'FFmpeg não está instalado ou configurado corretamente'}
             elif 'youtube' in error_msg.lower():
-                return {'error': 'Erro ao acessar o YouTube. Tente novamente mais tarde.'}
+                return {'error': 'Erro ao acessar YouTube. Tente novamente em alguns minutos.'}
+            elif 'network' in error_msg.lower() or 'connection' in error_msg.lower():
+                return {'error': 'Erro de conexão. Verifique sua internet e tente novamente.'}
             else:
                 return {'error': f'Erro no download: {error_msg}'}
     
@@ -440,7 +501,24 @@ class SpotifyDownloadService:
             }
 
 
-# Instância global do serviço
+# Instância global do serviço - Inicialização mais segura
+spotify_service = None
+
+def get_spotify_service():
+    """
+    Retorna a instância do serviço, inicializando se necessário.
+    """
+    global spotify_service
+    if spotify_service is None:
+        try:
+            spotify_service = SpotifyDownloadService()
+            print("✅ SpotifyDownloadService inicializado com sucesso")
+        except Exception as e:
+            print(f"❌ Erro ao inicializar SpotifyDownloadService: {e}")
+            return None
+    return spotify_service
+
+# Tentar inicializar na importação
 try:
     spotify_service = SpotifyDownloadService()
     print("✅ SpotifyDownloadService inicializado com sucesso")
