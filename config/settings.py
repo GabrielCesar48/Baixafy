@@ -1,4 +1,4 @@
-# config/settings.py - VERSÃO SIMPLIFICADA
+# config/settings.py - VERSÃO CORRIGIDA FINAL
 import os
 from pathlib import Path
 from decouple import config
@@ -7,19 +7,20 @@ from decouple import config
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Security settings
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-in-production')
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-in-production-baixafy-2024')
 DEBUG = config('DEBUG', default=True, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
-# Application definition - SIMPLIFICADO
+# Application definition - CORRIGIDO: incluir auth para admin funcionar
 INSTALLED_APPS = [
     'django.contrib.admin',
+    'django.contrib.auth',           # NECESSÁRIO para admin
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
     
-    # Apps locais - APENAS CORE
+    # Apps locais - APENAS CORE E BAIXADOR
     'apps.core',
     'apps.baixador',
 ]
@@ -29,6 +30,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',  # NECESSÁRIO para admin
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -44,6 +46,7 @@ TEMPLATES = [
             'context_processors': [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',      # NECESSÁRIO para admin
                 'django.contrib.messages.context_processors.messages',
             ],
         },
@@ -52,13 +55,26 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# Database - SIMPLIFICADO (SQLite apenas para sessões)
+# Database - SQLite para admin e sessões
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# Password validation - simplificado
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {
+            'min_length': 4,  # Senha mais simples para admin
+        }
+    },
+]
 
 # Internationalization
 LANGUAGE_CODE = 'pt-br'
@@ -95,3 +111,8 @@ FFPROBE_PATH = 'ffprobe'
 # Spotify API (opcional para credenciais)
 SPOTIFY_CLIENT_ID = config('SPOTIFY_CLIENT_ID', default='')
 SPOTIFY_CLIENT_SECRET = config('SPOTIFY_CLIENT_SECRET', default='')
+
+# Configurações de login - mantidas para admin funcionar
+LOGIN_URL = '/admin/login/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
