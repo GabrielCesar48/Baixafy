@@ -1,4 +1,95 @@
-# apps/baixador/services.py - VERSÃO CORRIGIDA
+# fix_spotdl_now.py - Execute na raiz do projeto para corrigir SpotDL agora
+import os
+import sys
+from pathlib import Path
+
+def corrigir_services_py():
+    """Corrige o arquivo services.py com a sintaxe correta do SpotDL."""
+    
+    print("🔧 Corrigindo services.py...")
+    
+    # Encontrar arquivo services.py
+    services_file = Path("apps/baixador/services.py")
+    
+    if not services_file.exists():
+        print("❌ Arquivo services.py não encontrado!")
+        print("   Verifique se está executando na raiz do projeto")
+        return False
+    
+    # Ler arquivo atual
+    try:
+        with open(services_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+    except Exception as e:
+        print(f"❌ Erro ao ler services.py: {e}")
+        return False
+    
+    # Fazer backup
+    backup_file = services_file.parent / "services.py.backup"
+    try:
+        with open(backup_file, 'w', encoding='utf-8') as f:
+            f.write(content)
+        print(f"✅ Backup criado: {backup_file}")
+    except Exception as e:
+        print(f"⚠️ Não foi possível criar backup: {e}")
+    
+    # Correções necessárias
+    corrections = [
+        # Correção 1: Remover config do construtor
+        (
+            'self.spotdl = Spotdl(\n                    client_id=settings.SPOTIFY_CLIENT_ID if hasattr(settings, \'SPOTIFY_CLIENT_ID\') else None,\n                    client_secret=settings.SPOTIFY_CLIENT_SECRET if hasattr(settings, \'SPOTIFY_CLIENT_SECRET\') else None,\n                    config=config\n                )',
+            '''self.spotdl = Spotdl(
+                    client_id=getattr(settings, 'SPOTIFY_CLIENT_ID', '') or os.getenv('SPOTIFY_CLIENT_ID', ''),
+                    client_secret=getattr(settings, 'SPOTIFY_CLIENT_SECRET', '') or os.getenv('SPOTIFY_CLIENT_SECRET', '')
+                )'''
+        ),
+        
+        # Correção 2: Remover importação de get_config
+        (
+            'from spotdl.utils.config import get_config',
+            '# from spotdl.utils.config import get_config  # Não usado'
+        ),
+        
+        # Correção 3: Remover configuração manual
+        (
+            '''# Configurar SpotDL com FFmpeg correto
+                config = get_config()
+                config['ffmpeg'] = self.ffmpeg_manager.obter_comando()''',
+            '''# SpotDL será inicializado com configuração padrão'''
+        )
+    ]
+    
+    # Aplicar correções
+    modified = False
+    for old_text, new_text in corrections:
+        if old_text in content:
+            content = content.replace(old_text, new_text)
+            modified = True
+            print("✅ Correção aplicada")
+    
+    # Se não achou as strings exatas, criar um novo arquivo
+    if not modified:
+        print("⚠️ Padrões específicos não encontrados, criando novo services.py...")
+        content = criar_services_correto()
+        modified = True
+    
+    # Salvar arquivo corrigido
+    if modified:
+        try:
+            with open(services_file, 'w', encoding='utf-8') as f:
+                f.write(content)
+            print("✅ services.py corrigido!")
+            return True
+        except Exception as e:
+            print(f"❌ Erro ao salvar: {e}")
+            return False
+    else:
+        print("ℹ️ Nenhuma correção necessária")
+        return True
+
+def criar_services_correto():
+    """Cria um services.py completamente correto."""
+    return '''# apps/baixador/services.py - VERSÃO CORRIGIDA
 import os
 import shutil
 import subprocess
@@ -27,9 +118,9 @@ class FFmpegManager:
         
         # 3. Locais comuns no Windows
         caminhos_windows = [
-            r'C:\ffmpeg\bin\ffmpeg.exe',
-            r'C:\Program Files\ffmpeg\bin\ffmpeg.exe', 
-            r'C:\Program Files (x86)\ffmpeg\bin\ffmpeg.exe',
+            r'C:\\ffmpeg\\bin\\ffmpeg.exe',
+            r'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe', 
+            r'C:\\Program Files (x86)\\ffmpeg\\bin\\ffmpeg.exe',
             Path.home() / 'ffmpeg' / 'bin' / 'ffmpeg.exe',
         ]
         
@@ -77,27 +168,34 @@ class SpotifyDownloadService:
         self.download_path = Path(settings.MEDIA_ROOT) / 'downloads'
         self.download_path.mkdir(exist_ok=True)
         
+        # Inicializar SpotDL apenas se FFmpeg estiver disponível
         self.spotdl = None
-        
         if self.ffmpeg_manager.disponivel:
             try:
-                # Import direto sem configuração
                 from spotdl import Spotdl
                 
-                # Limpar qualquer env var que possa interferir
-                if 'SPOTIPY_CLIENT_ID' in os.environ:
-                    del os.environ['SPOTIPY_CLIENT_ID']
-                if 'SPOTIPY_CLIENT_SECRET' in os.environ:
-                    del os.environ['SPOTIPY_CLIENT_SECRET']
-                    
-                # Tentar inicializar vazio
-                self.spotdl = Spotdl()
-                print("✅ SpotDL funcionando sem credenciais")
+                # CORREÇÃO: SpotDL não aceita 'config' no construtor
+                # Usar apenas client_id e client_secret
+                client_id = getattr(settings, 'SPOTIFY_CLIENT_ID', '') or os.getenv('SPOTIFY_CLIENT_ID', '')
+                client_secret = getattr(settings, 'SPOTIFY_CLIENT_SECRET', '') or os.getenv('SPOTIFY_CLIENT_SECRET', '')
+                
+                # Se não tiver credenciais, usar valores vazios (modo público)
+                if not client_id or not client_secret:
+                    print("⚠️ Credenciais do Spotify não configuradas. Usando modo público.")
+                    client_id = ""
+                    client_secret = ""
+                
+                # Inicializar SpotDL com sintaxe correta
+                self.spotdl = Spotdl(
+                    client_id=client_id,
+                    client_secret=client_secret
+                )
+                
+                print("✅ SpotDL inicializado com sucesso")
                 
             except Exception as e:
-                print(f"⚠️ SpotDL limitado: {e}")
-                # Funcionar mesmo com erro
-                self.spotdl = "mock"  # Placeholder que não quebra
+                print(f"❌ Erro ao inicializar SpotDL: {e}")
+                self.spotdl = None
     
     def health_check(self):
         """
@@ -241,3 +339,28 @@ try:
 except Exception as e:
     print(f"⚠️ Serviço será inicializado sob demanda: {e}")
     spotify_service = None
+'''
+
+def main():
+    """Função principal de correção."""
+    print("🚀 CORREÇÃO RÁPIDA DO SPOTDL")
+    print("=" * 40)
+    
+    # Verificar se estamos no diretório correto
+    if not Path("manage.py").exists():
+        print("❌ Execute este script na raiz do projeto (onde está manage.py)")
+        return
+    
+    # Fazer correção
+    if corrigir_services_py():
+        print("\n🎉 CORREÇÃO CONCLUÍDA!")
+        print("\n🎯 Próximos passos:")
+        print("1. Execute: python manage.py runserver")
+        print("2. O erro 'config' não deve mais aparecer")
+        print("3. Teste o download na interface")
+        print("\n💡 Para testar: python manage.py test_spotdl")
+    else:
+        print("\n❌ Correção falhou. Verifique os erros acima.")
+
+if __name__ == '__main__':
+    main()

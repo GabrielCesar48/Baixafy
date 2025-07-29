@@ -77,27 +77,34 @@ class SpotifyDownloadService:
         self.download_path = Path(settings.MEDIA_ROOT) / 'downloads'
         self.download_path.mkdir(exist_ok=True)
         
+        # Inicializar SpotDL apenas se FFmpeg estiver disponível
         self.spotdl = None
-        
         if self.ffmpeg_manager.disponivel:
             try:
-                # Import direto sem configuração
                 from spotdl import Spotdl
                 
-                # Limpar qualquer env var que possa interferir
-                if 'SPOTIPY_CLIENT_ID' in os.environ:
-                    del os.environ['SPOTIPY_CLIENT_ID']
-                if 'SPOTIPY_CLIENT_SECRET' in os.environ:
-                    del os.environ['SPOTIPY_CLIENT_SECRET']
-                    
-                # Tentar inicializar vazio
-                self.spotdl = Spotdl()
-                print("✅ SpotDL funcionando sem credenciais")
+                # CORREÇÃO: SpotDL não aceita 'config' no construtor
+                # Usar apenas client_id e client_secret
+                client_id = getattr(settings, 'SPOTIFY_CLIENT_ID', '') or os.getenv('SPOTIFY_CLIENT_ID', '')
+                client_secret = getattr(settings, 'SPOTIFY_CLIENT_SECRET', '') or os.getenv('SPOTIFY_CLIENT_SECRET', '')
+                
+                # Se não tiver credenciais, usar valores vazios (modo público)
+                if not client_id or not client_secret:
+                    print("⚠️ Credenciais do Spotify não configuradas. Usando modo público.")
+                    client_id = ""
+                    client_secret = ""
+                
+                # Inicializar SpotDL com sintaxe correta
+                self.spotdl = Spotdl(
+                    client_id=client_id,
+                    client_secret=client_secret
+                )
+                
+                print("✅ SpotDL inicializado com sucesso")
                 
             except Exception as e:
-                print(f"⚠️ SpotDL limitado: {e}")
-                # Funcionar mesmo com erro
-                self.spotdl = "mock"  # Placeholder que não quebra
+                print(f"❌ Erro ao inicializar SpotDL: {e}")
+                self.spotdl = None
     
     def health_check(self):
         """
