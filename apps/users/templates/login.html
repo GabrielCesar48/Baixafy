@@ -1,76 +1,43 @@
-<!-- templates/users/login.html -->
+<!-- LOGIN - templates/registration/login.html -->
 {% extends 'base.html' %}
 
-{% block title %}Entrar - BaixaFy{% endblock %}
+{% block title %}Login - BaixaFy{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6 col-lg-5">
-            <div class="music-card p-5">
-                <div class="text-center mb-4">
-                    <h2 class="fw-bold">
-                        <i class="fas fa-sign-in-alt me-2 text-spotify"></i>
-                        Entrar no BaixaFy
-                    </h2>
-                    <p class="text-muted">Acesse sua conta e continue baixando suas músicas</p>
-                </div>
-                
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header text-center">
+                <h4><i class="fas fa-sign-in-alt"></i> Entrar</h4>
+            </div>
+            <div class="card-body">
                 <form method="post">
                     {% csrf_token %}
                     
                     <div class="mb-3">
-                        <label for="{{ form.username.id_for_label }}" class="form-label fw-bold">
-                            <i class="fas fa-user me-2"></i>Usuário ou E-mail
-                        </label>
-                        {{ form.username }}
-                        {% if form.username.errors %}
-                            <div class="text-danger small mt-1">
-                                {{ form.username.errors.0 }}
-                            </div>
-                        {% endif %}
+                        <label for="id_username" class="form-label">Nome de usuário</label>
+                        <input type="text" class="form-control form-control-lg" name="username" id="id_username" required>
                     </div>
                     
-                    <div class="mb-4">
-                        <label for="{{ form.password.id_for_label }}" class="form-label fw-bold">
-                            <i class="fas fa-lock me-2"></i>Senha
-                        </label>
-                        {{ form.password }}
-                        {% if form.password.errors %}
-                            <div class="text-danger small mt-1">
-                                {{ form.password.errors.0 }}
-                            </div>
-                        {% endif %}
+                    <div class="mb-3">
+                        <label for="id_password" class="form-label">Senha</label>
+                        <input type="password" class="form-control form-control-lg" name="password" id="id_password" required>
                     </div>
                     
-                    {% if form.non_field_errors %}
-                        <div class="alert alert-danger">
-                            {{ form.non_field_errors.0 }}
-                        </div>
-                    {% endif %}
+                    <div class="d-grid mb-3">
+                        <button type="submit" class="btn btn-spotify btn-lg">
+                            <i class="fas fa-sign-in-alt"></i> Entrar
+                        </button>
+                    </div>
                     
-                    <button type="submit" class="btn btn-spotify w-100 btn-lg mb-3">
-                        <i class="fas fa-sign-in-alt me-2"></i>Entrar
-                    </button>
+                    <div class="text-center">
+                        <p>Não tem uma conta? 
+                            <a href="{% url 'register' %}">Registre-se</a>
+                        </p>
+                    </div>
                 </form>
-                
-                <hr class="my-4">
-                
-                <div class="text-center">
-                    <p class="text-muted mb-2">Ainda não tem uma conta?</p>
-                    <a href="{% url 'register' %}" class="btn btn-outline-spotify w-100">
-                        <i class="fas fa-user-plus me-2"></i>Criar Conta Gratuita
-                    </a>
-                </div>
-                
-                <div class="text-center mt-4">
-                    <small class="text-muted">
-                        Ao entrar, você concorda com nossos termos de uso
-                    </small>
-                </div>
             </div>
         </div>
     </div>
 </div>
 {% endblock %}
-

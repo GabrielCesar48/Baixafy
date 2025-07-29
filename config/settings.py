@@ -113,5 +113,10 @@ MESSAGE_TAGS = {
     messages.ERROR: 'danger',
 }
 
+# Ou se estiver no PATH
+FFMPEG_PATH = 'ffmpeg'
+FFPROBE_PATH = 'ffprobe'
+
+
 # Email settings
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')

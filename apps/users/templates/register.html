@@ -1,185 +1,83 @@
-<!-- templates/users/register.html -->
+<!-- REGISTRO - templates/registration/register.html -->
 {% extends 'base.html' %}
 
-{% block title %}Cadastro - BaixaFy{% endblock %}
+{% block title %}Registrar - BaixaFy{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6">
-            <div class="music-card p-5">
-                <div class="text-center mb-4">
-                    <h2 class="fw-bold">
-                        <i class="fas fa-user-plus me-2 text-spotify"></i>
-                        Criar Conta no BaixaFy
-                    </h2>
-                    <p class="text-muted">Junte-se a milhares de usuários e comece a baixar suas músicas!</p>
-                </div>
-                
-                <!-- Benefits Banner -->
-                <div class="alert alert-info mb-4">
-                    <h6 class="alert-heading">
-                        <i class="fas fa-gift me-2"></i>Benefícios da sua conta gratuita:
-                    </h6>
-                    <ul class="mb-0 small">
-                        <li>1 música gratuita para testar</li>
-                        <li>Visualização completa de metadados</li>
-                        <li>Histórico de downloads</li>
-                        <li>Upgrade para premium a qualquer momento</li>
-                    </ul>
-                </div>
-                
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header text-center">
+                <h4><i class="fas fa-user-plus"></i> Criar Conta</h4>
+            </div>
+            <div class="card-body">
                 <form method="post">
                     {% csrf_token %}
                     
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="{{ form.first_name.id_for_label }}" class="form-label fw-bold">
-                                    <i class="fas fa-user me-2"></i>Primeiro Nome
-                                </label>
-                                {{ form.first_name }}
-                                {% if form.first_name.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {{ form.first_name.errors.0 }}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="{{ form.username.id_for_label }}" class="form-label fw-bold">
-                                    <i class="fas fa-at me-2"></i>Nome de Usuário
-                                </label>
-                                {{ form.username }}
-                                {% if form.username.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {{ form.username.errors.0 }}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    
                     <div class="mb-3">
-                        <label for="{{ form.email.id_for_label }}" class="form-label fw-bold">
-                            <i class="fas fa-envelope me-2"></i>E-mail
+                        <label for="{{ form.username.id_for_label }}" class="form-label">
+                            Nome de usuário
                         </label>
-                        {{ form.email }}
-                        {% if form.email.errors %}
-                            <div class="text-danger small mt-1">
-                                {{ form.email.errors.0 }}
-                            </div>
+                        {{ form.username }}
+                        {% if form.username.errors %}
+                            <div class="text-danger">{{ form.username.errors }}</div>
                         {% endif %}
                     </div>
                     
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="{{ form.password1.id_for_label }}" class="form-label fw-bold">
-                                    <i class="fas fa-lock me-2"></i>Senha
-                                </label>
-                                {{ form.password1 }}
-                                {% if form.password1.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {{ form.password1.errors.0 }}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <div class="mb-4">
-                                <label for="{{ form.password2.id_for_label }}" class="form-label fw-bold">
-                                    <i class="fas fa-lock me-2"></i>Confirmar Senha
-                                </label>
-                                {{ form.password2 }}
-                                {% if form.password2.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {{ form.password2.errors.0 }}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
+                    <div class="mb-3">
+                        <label for="{{ form.password1.id_for_label }}" class="form-label">
+                            Senha
+                        </label>
+                        {{ form.password1 }}
+                        {% if form.password1.errors %}
+                            <div class="text-danger">{{ form.password1.errors }}</div>
+                        {% endif %}
                     </div>
                     
-                    {% if form.non_field_errors %}
-                        <div class="alert alert-danger">
-                            {{ form.non_field_errors.0 }}
-                        </div>
-                    {% endif %}
+                    <div class="mb-3">
+                        <label for="{{ form.password2.id_for_label }}" class="form-label">
+                            Confirmar senha
+                        </label>
+                        {{ form.password2 }}
+                        {% if form.password2.errors %}
+                            <div class="text-danger">{{ form.password2.errors }}</div>
+                        {% endif %}
+                    </div>
                     
-                    <button type="submit" class="btn btn-spotify w-100 btn-lg mb-3">
-                        <i class="fas fa-rocket me-2"></i>Criar Conta Gratuita
-                    </button>
+                    <div class="d-grid mb-3">
+                        <button type="submit" class="btn btn-spotify btn-lg">
+                            <i class="fas fa-user-plus"></i> Criar Conta
+                        </button>
+                    </div>
+                    
+                    <div class="text-center">
+                        <p>Já tem uma conta? 
+                            <a href="{% url 'login' %}">Faça login</a>
+                        </p>
+                    </div>
                 </form>
                 
-                <hr class="my-4">
-                
-                <div class="text-center">
-                    <p class="text-muted mb-2">Já possui uma conta?</p>
-                    <a href="{% url 'login' %}" class="btn btn-outline-spotify w-100">
-                        <i class="fas fa-sign-in-alt me-2"></i>Fazer Login
-                    </a>
-                </div>
-                
-                <div class="text-center mt-4">
-                    <small class="text-muted">
-                        Ao criar uma conta, você concorda com nossos 
-                        <a href="#" class="text-spotify">termos de uso</a> e 
-                        <a href="#" class="text-spotify">política de privacidade</a>
-                    </small>
+                <div class="alert alert-success mt-3">
+                    <i class="fas fa-gift"></i>
+                    <strong>Bônus de Boas-vindas!</strong><br>
+                    Ganhe 1 download gratuito ao se registrar.
                 </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
-<script>
-$(document).ready(function() {
-    // Password strength indicator
-    $('#id_password1').on('input', function() {
-        const password = $(this).val();
-        let strength = 0;
-        
-        if (password.length >= 8) strength++;
-        if (/[A-Z]/.test(password)) strength++;
-        if (/[0-9]/.test(password)) strength++;
-        if (/[^A-Za-z0-9]/.test(password)) strength++;
-        
-        let strengthText = '';
-        let strengthClass = '';
-        
-        switch(strength) {
-            case 0:
-            case 1:
-                strengthText = 'Muito fraca';
-                strengthClass = 'text-danger';
-                break;
-            case 2:
-                strengthText = 'Fraca';
-                strengthClass = 'text-warning';
-                break;
-            case 3:
-                strengthText = 'Boa';
-                strengthClass = 'text-info';
-                break;
-            case 4:
-                strengthText = 'Muito boa';
-                strengthClass = 'text-success';
-                break;
-        }
-        
-        // Remove existing strength indicator
-        $('#password-strength').remove();
-        
-        if (password.length > 0) {
-            $(this).after(`<small id="password-strength" class="${strengthClass}">Força da senha: ${strengthText}</small>`);
-        }
-    });
-});
-</script>
+<style>
+.card input {
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    padding: 12px;
+    font-size: 1rem;
+}
+
+.card input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(29, 185, 84, 0.25);
+}
+</style>
 {% endblock %}

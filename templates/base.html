@@ -1,525 +1,186 @@
+<!-- BASE TEMPLATE - templates/base.html -->
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="BaixaFy - Baixe suas músicas favoritas do Spotify de forma fácil e rápida">
-    <meta name="keywords" content="spotify, download, música, mp3, baixar, playlist">
-    <meta name="author" content="BaixaFy">
-    
-    <!-- CSRF Token -->
-    <meta name="csrf-token" content="{{ csrf_token }}">
-    
-    <title>{% block title %}BaixaFy - Baixe músicas do Spotify{% endblock %}</title>
-    
-    <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="{% load static %}{% static 'favicon.ico' %}">
+    <title>{% block title %}BaixaFy - Seu Spotify Downloader{% endblock %}</title>
     
     <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Custom CSS -->
     <style>
         :root {
             --primary-color: #1db954;
-            --primary-dark: #1ed760;
             --secondary-color: #191414;
-            --accent-color: #ff6b6b;
-            --text-light: #b3b3b3;
-            --border-color: #2e2e2e;
-            --bg-dark: #121212;
-            --bg-card: #181818;
-        }
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+            --accent-color: #1ed760;
         }
         
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #191414 0%, #1db954 100%);
             min-height: 100vh;
-            color: #333;
-            line-height: 1.6;
-        }
-        
-        /* Navbar Custom */
-        .navbar-custom {
-            background: rgba(25, 20, 20, 0.95);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 1rem 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         
         .navbar-brand {
-            font-weight: 700;
-            font-size: 1.5rem;
-            color: var(--primary-color) !important;
-            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.8rem;
+            color: var(--accent-color) !important;
         }
         
-        .navbar-brand:hover {
-            color: var(--primary-dark) !important;
+        .navbar {
+            background-color: rgba(25, 20, 20, 0.95) !important;
+            backdrop-filter: blur(10px);
         }
         
-        .navbar-nav .nav-link {
-            color: rgba(255, 255, 255, 0.8) !important;
-            font-weight: 500;
-            padding: 0.5rem 1rem !important;
-            border-radius: 20px;
-            transition: all 0.3s ease;
-        }
-        
-        .navbar-nav .nav-link:hover {
-            color: white !important;
-            background: rgba(255, 255, 255, 0.1);
-        }
-        
-        .navbar-nav .nav-link.active {
-            color: var(--primary-color) !important;
-            background: rgba(29, 185, 84, 0.1);
-        }
-        
-        /* Cards */
         .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
             background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
         
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-        }
-        
-        .card-header {
-            background: linear-gradient(45deg, var(--primary-color), var(--primary-dark));
-            color: white;
-            border-radius: 15px 15px 0 0 !important;
-            border: none;
-            padding: 1rem 1.5rem;
-        }
-        
-        /* Buttons */
-        .btn-primary {
-            background: linear-gradient(45deg, var(--primary-color), var(--primary-dark));
-            border: none;
-            border-radius: 25px;
-            padding: 0.75rem 1.5rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-primary:hover {
-            background: linear-gradient(45deg, #1ed760, #1db954);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(29, 185, 84, 0.3);
-        }
-        
-        .btn-outline-primary {
-            border: 2px solid var(--primary-color);
-            color: var(--primary-color);
-            border-radius: 25px;
-            padding: 0.75rem 1.5rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-outline-primary:hover {
+        .btn-spotify {
             background: var(--primary-color);
-            border-color: var(--primary-color);
-            transform: translateY(-2px);
-        }
-        
-        /* Forms */
-        .form-control {
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
-            padding: 0.75rem 1rem;
-            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            color: white;
+            border-radius: 25px;
+            padding: 12px 30px;
+            font-weight: 600;
             transition: all 0.3s ease;
         }
         
-        .form-control:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 0.25rem rgba(29, 185, 84, 0.25);
+        .btn-spotify:hover {
+            background: var(--accent-color);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(29, 185, 84, 0.4);
         }
         
-        /* Messages */
-        .alert {
-            border: none;
-            border-radius: 15px;
-            padding: 1rem 1.5rem;
-            margin-bottom: 1rem;
-        }
-        
-        .alert-success {
-            background: linear-gradient(45deg, #28a745, #20c997);
-            color: white;
-        }
-        
-        .alert-warning {
-            background: linear-gradient(45deg, #ffc107, #fd7e14);
-            color: white;
-        }
-        
-        .alert-danger {
-            background: linear-gradient(45deg, #dc3545, #e83e8c);
-            color: white;
-        }
-        
-        .alert-info {
-            background: linear-gradient(45deg, #17a2b8, #6f42c1);
-            color: white;
-        }
-        
-        /* Footer */
-        .footer {
-            background: rgba(25, 20, 20, 0.95);
-            color: rgba(255, 255, 255, 0.8);
-            padding: 2rem 0;
-            margin-top: auto;
-        }
-        
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .fade-in {
-            animation: fadeIn 0.6s ease-out;
-        }
-        
-        /* Responsive */
-        @media (max-width: 768px) {
-            .navbar-brand {
-                font-size: 1.25rem;
-            }
-            
-            .card {
-                margin: 0.5rem 0;
-            }
-            
-            .btn {
-                width: 100%;
-                margin: 0.25rem 0;
-            }
-        }
-        
-        /* Loading Spinner */
-        .spinner-border {
-            animation: spinner-border 0.75s linear infinite;
-        }
-        
-        /* Music Player Styles */
-        .music-preview {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
-            border: 1px solid rgba(255, 255, 255, 0.2);
+        .status-badge {
             border-radius: 20px;
-            padding: 2rem;
-            backdrop-filter: blur(10px);
+            padding: 8px 16px;
+            font-weight: 600;
+            font-size: 0.9rem;
         }
         
-        /* Premium Badge */
         .premium-badge {
-            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            background: linear-gradient(45deg, #FFD700, #FFA500);
             color: #333;
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            font-weight: bold;
-            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
         }
         
-        /* Stats Cards */
-        .stats-card {
+        .free-badge {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .download-form {
             background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 15px;
-            padding: 1.5rem;
-            text-align: center;
+            padding: 20px;
             backdrop-filter: blur(10px);
-            transition: transform 0.3s ease;
         }
         
-        .stats-card:hover {
-            transform: translateY(-5px);
-        }
-        
-        .stats-number {
-            font-size: 2.5rem;
-            font-weight: bold;
-            color: var(--primary-color);
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        .service-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
         }
     </style>
-    
-    {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-custom fixed-top">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
             <a class="navbar-brand" href="{% url 'home' %}">
-                <i class="fas fa-music me-2"></i>BaixaFy
+                <i class="fas fa-music"></i> BaixaFy
             </a>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <i class="fas fa-bars text-white"></i>
+                <span class="navbar-toggler-icon"></span>
             </button>
             
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" 
-                           href="{% url 'home' %}">
-                            <i class="fas fa-home me-1"></i>Início
-                        </a>
-                    </li>
-                    
+                <ul class="navbar-nav ms-auto">
                     {% if user.is_authenticated %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'painel' %}active{% endif %}" 
-                           href="{% url 'painel' %}">
-                            <i class="fas fa-download me-1"></i>Baixar
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'historico' %}active{% endif %}" 
-                           href="{% url 'historico' %}">
-                            <i class="fas fa-history me-1"></i>Histórico
-                        </a>
-                    </li>
-                    {% endif %}
-                </ul>
-                
-                <ul class="navbar-nav">
-                    {% if user.is_authenticated %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" 
-                           data-bs-toggle="dropdown">
-                            <i class="fas fa-user me-1"></i>{{ user.first_name|default:user.username }}
-                            {% if user.is_premium_active %}
-                                <span class="badge bg-warning ms-1">Premium</span>
-                            {% endif %}
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li>
-                                <a class="dropdown-item" href="{% url 'painel' %}">
-                                    <i class="fas fa-tachometer-alt me-2"></i>Painel
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{% url 'profile' %}">
-                                    <i class="fas fa-user-edit me-2"></i>Perfil
-                                </a>
-                            </li>
-                            {% if not user.is_premium_active %}
-                            <li>
-                                <a class="dropdown-item" href="{% url 'pagamento' %}">
-                                    <i class="fas fa-crown me-2"></i>Assinar Premium
-                                </a>
-                            </li>
-                            {% endif %}
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <a class="dropdown-item" href="{% url 'logout' %}">
-                                    <i class="fas fa-sign-out-alt me-2"></i>Sair
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'painel' %}">
+                                <i class="fas fa-tachometer-alt"></i> Painel
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'historico' %}">
+                                <i class="fas fa-history"></i> Histórico
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'logout' %}">
+                                <i class="fas fa-sign-out-alt"></i> Sair
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <span class="nav-link">
+                                <i class="fas fa-user"></i> {{ user.username }}
+                            </span>
+                        </li>
                     {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'login' %}">
-                            <i class="fas fa-sign-in-alt me-1"></i>Entrar
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'register' %}">
-                            <i class="fas fa-user-plus me-1"></i>Cadastrar
-                        </a>
-                    </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'login' %}">
+                                <i class="fas fa-sign-in-alt"></i> Entrar
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'register' %}">
+                                <i class="fas fa-user-plus"></i> Registrar
+                            </a>
+                        </li>
                     {% endif %}
                 </ul>
             </div>
         </div>
     </nav>
-    
+
+    <!-- Status do Serviço -->
+    {% if not ffmpeg_available %}
+    <div class="service-status">
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Serviço Temporariamente Indisponível</strong><br>
+            FFmpeg não detectado. Alguns downloads podem falhar.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Messages -->
+    {% if messages %}
+    <div class="container mt-3">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <!-- Main Content -->
-    <main style="margin-top: 80px; min-height: calc(100vh - 160px);">
-        <!-- Messages -->
-        {% if messages %}
-        <div class="container mt-3">
-            {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                <i class="fas fa-info-circle me-2"></i>
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-        
-        <!-- Page Content -->
-        <div class="fade-in">
-            {% block content %}{% endblock %}
-        </div>
+    <main class="container my-5">
+        {% block content %}
+        {% endblock %}
     </main>
-    
+
     <!-- Footer -->
-    <footer class="footer">
+    <footer class="text-center text-white mt-5 py-4">
         <div class="container">
-            <div class="row">
-                <div class="col-lg-6 col-md-6">
-                    <h5>
-                        <i class="fas fa-music me-2"></i>BaixaFy
-                    </h5>
-                    <p class="mb-0">
-                        Baixe suas músicas favoritas do Spotify de forma fácil e rápida.
-                    </p>
-                </div>
-                <div class="col-lg-3 col-md-6">
-                    <h6>Links Úteis</h6>
-                    <ul class="list-unstyled">
-                        <li><a href="{% url 'home' %}" class="text-decoration-none text-light">Início</a></li>
-                        {% if user.is_authenticated %}
-                        <li><a href="{% url 'painel' %}" class="text-decoration-none text-light">Painel</a></li>
-                        {% else %}
-                        <li><a href="{% url 'login' %}" class="text-decoration-none text-light">Login</a></li>
-                        <li><a href="{% url 'register' %}" class="text-decoration-none text-light">Cadastro</a></li>
-                        {% endif %}
-                    </ul>
-                </div>
-                <div class="col-lg-3 col-md-6">
-                    <h6>Suporte</h6>
-                    <ul class="list-unstyled">
-                        <li><small>Como usar</small></li>
-                        <li><small>FAQ</small></li>
-                        <li><small>Contato</small></li>
-                    </ul>
-                </div>
-            </div>
-            <hr class="my-4" style="border-color: rgba(255, 255, 255, 0.2);">
-            <div class="row">
-                <div class="col-12 text-center">
-                    <small>
-                        © {{ current_year|default:"2024" }} BaixaFy. 
-                        Feito com <i class="fas fa-heart text-danger"></i> para música.
-                    </small>
-                </div>
-            </div>
+            <p>&copy; 2024 BaixaFy - Desenvolvido com <i class="fas fa-heart text-danger"></i> para música</p>
+            <p><small>Este serviço não é afiliado ao Spotify.</small></p>
         </div>
     </footer>
-    
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    
+
     <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- Custom JavaScript -->
-    <script>
-        // CSRF Token setup for AJAX
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
-            }
-            return cookieValue;
-        }
-        
-        const csrftoken = getCookie('csrftoken');
-        
-        // Setup AJAX
-        $.ajaxSetup({
-            beforeSend: function(xhr, settings) {
-                if (!(/^http:.*/.test(settings.url) || /^https:.*/.test(settings.url))) {
-                    xhr.setRequestHeader("X-CSRFToken", csrftoken);
-                }
-            }
-        });
-        
-        // Auto-hide alerts after 5 seconds
-        $(document).ready(function() {
-            setTimeout(function() {
-                $('.alert').fadeOut('slow');
-            }, 5000);
-            
-            // Smooth scrolling for internal links
-            $('a[href^="#"]').on('click', function(event) {
-                const target = $(this.getAttribute('href'));
-                if (target.length) {
-                    event.preventDefault();
-                    $('html, body').stop().animate({
-                        scrollTop: target.offset().top - 100
-                    }, 1000);
-                }
-            });
-        });
-        
-        // Utility functions
-        window.showLoading = function(element) {
-            const $el = $(element);
-            $el.data('original-html', $el.html());
-            $el.html('<span class="spinner-border spinner-border-sm me-2"></span>Carregando...');
-            $el.prop('disabled', true);
-        };
-        
-        window.hideLoading = function(element) {
-            const $el = $(element);
-            $el.html($el.data('original-html'));
-            $el.prop('disabled', false);
-        };
-        
-        window.showToast = function(message, type = 'info') {
-            const toastHtml = `
-                <div class="toast align-items-center text-white bg-${type} border-0" role="alert">
-                    <div class="d-flex">
-                        <div class="toast-body">
-                            ${message}
-                        </div>
-                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                    </div>
-                </div>
-            `;
-            
-            // Create toast container if it doesn't exist
-            if (!$('#toast-container').length) {
-                $('body').append('<div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3"></div>');
-            }
-            
-            const $toast = $(toastHtml);
-            $('#toast-container').append($toast);
-            
-            const toast = new bootstrap.Toast($toast[0]);
-            toast.show();
-            
-            // Remove from DOM after hiding
-            $toast.on('hidden.bs.toast', function() {
-                $(this).remove();
-            });
-        };
-    </script>
-    
-    {% block extra_js %}{% endblock %}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+

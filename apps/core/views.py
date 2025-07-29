@@ -8,6 +8,8 @@ from django.http import JsonResponse, FileResponse, Http404
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import get_user_model
 from django.conf import settings
+import subprocess
+import shutil
 
 from apps.users.forms import DownloadForm
 from apps.baixador.services import spotify_service
@@ -15,6 +17,21 @@ from apps.users.models import DownloadHistory
 
 User = get_user_model()
 
+
+def verificar_ffmpeg():
+    """Verifica se FFmpeg está disponível no sistema."""
+    try:
+        # Verifica se FFmpeg está no PATH
+        ffmpeg_path = shutil.which('ffmpeg')
+        if ffmpeg_path:
+            print(f"FFmpeg encontrado em: {ffmpeg_path}")
+            return True
+        else:
+            print("FFmpeg não encontrado no PATH")
+            return False
+    except Exception as e:
+        print(f"Erro ao verificar FFmpeg: {e}")
+        return False
 
 def home(request):
     """Página inicial do BaixaFy."""

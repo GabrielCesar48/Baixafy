@@ -1,760 +1,147 @@
+<!-- PAINEL - templates/baixafy/painel.html -->
 {% extends 'base.html' %}
-{% load static %}
 
 {% block title %}Painel - BaixaFy{% endblock %}
 
-{% block extra_css %}
-<style>
-    .premium-badge {
-        background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        font-size: 0.9rem;
-        font-weight: bold;
-    }
-    
-    .free-badge {
-        background: #6c757d;
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        font-size: 0.9rem;
-    }
-    
-    .music-preview {
-        background: #f8f9fa;
-        border-radius: 15px;
-        padding: 1.5rem;
-        margin: 1rem 0;
-        border: 2px solid #e9ecef;
-    }
-    
-    .playlist-track {
-        background: white;
-        border-radius: 10px;
-        padding: 1rem;
-        margin: 0.5rem 0;
-        border: 1px solid #dee2e6;
-        transition: all 0.3s ease;
-    }
-    
-    .playlist-track:hover {
-        border-color: #007bff;
-        box-shadow: 0 2px 10px rgba(0,123,255,0.1);
-    }
-    
-    .track-cover {
-        width: 60px;
-        height: 60px;
-        border-radius: 8px;
-        object-fit: cover;
-    }
-    
-    .download-btn {
-        background: linear-gradient(45deg, #007bff, #0056b3);
-        border: none;
-        border-radius: 10px;
-        color: white;
-        padding: 0.75rem 1.5rem;
-        font-weight: bold;
-        transition: all 0.3s ease;
-    }
-    
-    .download-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(0,123,255,0.3);
-    }
-    
-    .spinner-border-sm {
-        width: 1rem;
-        height: 1rem;
-    }
-    
-    .alert-custom {
-        border-radius: 15px;
-        border: none;
-        padding: 1rem 1.5rem;
-    }
-    
-    .progress-custom {
-        height: 8px;
-        border-radius: 10px;
-        background-color: #e9ecef;
-    }
-    
-    .progress-bar-custom {
-        background: linear-gradient(45deg, #28a745, #20c997);
-        border-radius: 10px;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="container mt-4">
-    <!-- Header do Painel -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h2 class="mb-2">
-                        🎵 Olá, {{ user.first_name|default:user.username }}!
-                    </h2>
-                    <p class="text-muted mb-0">Baixe suas músicas favoritas do Spotify</p>
-                </div>
-                <div class="text-end">
-                    {% if is_premium %}
-                        <span class="premium-badge">
-                            ⭐ Premium ({{ days_remaining }} dias)
-                        </span>
-                    {% else %}
-                        <span class="free-badge">
-                            🆓 Grátis ({{ free_downloads_used }}/1 usado)
-                        </span>
-                    {% endif %}
-                </div>
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-user"></i> Minha Conta</h5>
             </div>
-        </div>
-    </div>
-
-    <!-- Status do Serviço -->
-    {% if service_message %}
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="alert alert-warning alert-custom">
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <div>
-                        <strong>Atenção:</strong> {{ service_message }}
-                        {% if service_status.error_type == 'ffmpeg_missing' %}
-                            <br><small class="text-muted">
-                                Instale o FFmpeg para continuar: 
-                                <code>choco install ffmpeg</code> ou 
-                                <code>winget install ffmpeg</code>
-                            </small>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    {% if is_premium %}
+                        <span class="status-badge premium-badge">
+                            <i class="fas fa-crown"></i> PREMIUM
+                        </span>
+                        <p class="mt-2 mb-1">
+                            <strong>{{ days_remaining }}</strong> dias restantes
+                        </p>
+                    {% else %}
+                    <span class="status-badge free-badge">
+                        <i class="fas fa-gift"></i> GRATUITO
+                    </span>
+                    <p class="mt-2 mb-1">
+                        {% if user.free_downloads_used >= 1 %}
+                            Downloads restantes: <strong>0</strong>
+                        {% else %}
+                            Downloads restantes: <strong>1</strong>
                         {% endif %}
+                    </p>
+                {% endif %}
+                </div>
+                
+                <hr>
+                
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 class="text-primary">{{ profile.total_downloads }}</h4>
+                        <small class="text-muted">Total baixado</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-success">{{ profile.created_at|date:"d/m/Y" }}</h4>
+                        <small class="text-muted">Membro desde</small>
                     </div>
                 </div>
+                
+                {% if not is_premium %}
+                <div class="mt-3 text-center">
+                    <a href="{% url 'ativar_premium' %}" class="btn btn-warning btn-sm">
+                        <i class="fas fa-crown"></i> Virar Premium
+                    </a>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
-    {% endif %}
-
-    <!-- Formulário de Download -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-download me-2"></i>
-                        Baixar Música ou Playlist
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <form id="download-form">
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-download"></i> Baixar Música</h5>
+            </div>
+            <div class="card-body">
+                {% if not ffmpeg_available %}
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Serviço Indisponível</strong><br>
+                        O sistema de conversão de áudio não está funcionando. 
+                        Verifique se o FFmpeg está instalado e no PATH do sistema.
+                    </div>
+                {% elif not can_download %}
+                    <div class="alert alert-warning text-center">
+                        <h4><i class="fas fa-lock"></i> Limite Atingido</h4>
+                        <p>Você já usou seu download gratuito!</p>
+                        <a href="{% url 'ativar_premium' %}" class="btn btn-warning">
+                            <i class="fas fa-crown"></i> Assinar Premium
+                        </a>
+                    </div>
+                {% else %}
+                    <form method="post" action="{% url 'baixar_musica' %}" id="downloadForm">
                         {% csrf_token %}
-                        <div class="row">
-                            <div class="col-lg-8 col-md-7">
-                                <div class="mb-3">
-                                    <label for="spotify_url" class="form-label">
-                                        Cole o link do Spotify:
-                                    </label>
-                                    <input 
-                                        type="url" 
-                                        class="form-control form-control-lg" 
-                                        id="spotify_url" 
-                                        name="spotify_url"
-                                        placeholder="https://open.spotify.com/..."
-                                        required
-                                    >
-                                    <div class="form-text">
-                                        Suporta músicas individuais, playlists e álbuns
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-lg-4 col-md-5">
-                                <label class="form-label">&nbsp;</label>
-                                <div class="d-grid">
-                                    <button 
-                                        type="submit" 
-                                        class="btn download-btn"
-                                        id="preview-btn"
-                                        {% if not can_download and not is_premium %}disabled{% endif %}
-                                    >
-                                        <i class="fas fa-search me-2"></i>
-                                        Visualizar
-                                    </button>
-                                </div>
+                        <div class="mb-3">
+                            <label for="spotify_url" class="form-label">
+                                <i class="fab fa-spotify text-success"></i> 
+                                URL do Spotify
+                            </label>
+                            <input 
+                                type="url" 
+                                class="form-control form-control-lg" 
+                                id="spotify_url" 
+                                name="spotify_url" 
+                                placeholder="https://open.spotify.com/track/..." 
+                                required
+                            >
+                            <div class="form-text">
+                                Cole aqui o link da música ou playlist do Spotify
                             </div>
                         </div>
                         
-                        {% if not can_download and not is_premium %}
-                        <div class="alert alert-info alert-custom mt-3">
-                            <i class="fas fa-info-circle me-2"></i>
-                            Você já usou seu download gratuito. 
-                            <a href="{% url 'pagamento' %}" class="alert-link">
-                                Assine o Premium
-                            </a> para downloads ilimitados!
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-spotify btn-lg" id="downloadBtn">
+                                <i class="fas fa-download"></i> Baixar Música
+                            </button>
                         </div>
-                        {% endif %}
                     </form>
-                </div>
+                    
+                    <div id="downloadStatus" class="mt-3" style="display: none;">
+                        <div class="alert alert-info">
+                            <div class="d-flex align-items-center">
+                                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                <span>Processando download... Isso pode levar alguns minutos.</span>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
             </div>
         </div>
-    </div>
-
-    <!-- Loading Spinner -->
-    <div id="loading-spinner" class="text-center mb-4 d-none">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Carregando...</span>
-        </div>
-        <p class="mt-2 text-muted">Buscando informações no Spotify...</p>
-    </div>
-
-    <!-- Preview da Música/Playlist -->
-    <div id="music-preview" class="d-none">
-        <div class="card shadow-sm">
+        
+        <div class="card mt-4">
             <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-music me-2"></i>
-                    <span id="preview-title">Preview</span>
-                </h5>
+                <h6><i class="fas fa-info-circle"></i> Como usar</h6>
             </div>
-            <div class="card-body" id="preview-content">
-                <!-- Conteúdo será inserido dinamicamente -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Resultados do Download -->
-    <div id="download-results" class="d-none">
-        <div class="card shadow-sm">
-            <div class="card-header bg-success text-white">
-                <h5 class="mb-0">
-                    <i class="fas fa-check-circle me-2"></i>
-                    Download Concluído
-                </h5>
-            </div>
-            <div class="card-body" id="results-content">
-                <!-- Resultado será inserido dinamicamente -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Estatísticas do Usuário -->
-    <div class="row mt-4">
-        <div class="col-md-3 col-sm-6 mb-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h3 class="text-primary">{{ total_downloads }}</h3>
-                    <p class="text-muted mb-0">Total de Downloads</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 col-sm-6 mb-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h3 class="text-success">
-                        {% if is_premium %}∞{% else %}{{ free_downloads_used }}/1{% endif %}
-                    </h3>
-                    <p class="text-muted mb-0">
-                        {% if is_premium %}Ilimitados{% else %}Downloads Grátis{% endif %}
-                    </p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 col-sm-6 mb-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h3 class="text-warning">{{ days_remaining|default:"0" }}</h3>
-                    <p class="text-muted mb-0">Dias Restantes</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 col-sm-6 mb-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h3 class="text-info">{{ recent_downloads|length }}</h3>
-                    <p class="text-muted mb-0">Downloads Recentes</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Histórico Recente -->
-    {% if recent_downloads %}
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-history me-2"></i>
-                        Downloads Recentes
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Música</th>
-                                    <th>Artista</th>
-                                    <th>Data</th>
-                                    <th>Tipo</th>
-                                    <th>Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for download in recent_downloads %}
-                                <tr>
-                                    <td>
-                                        <strong>{{ download.song_name }}</strong>
-                                    </td>
-                                    <td>{{ download.artist_name }}</td>
-                                    <td>{{ download.download_date|date:"d/m/Y H:i" }}</td>
-                                    <td>
-                                        {% if download.is_premium_download %}
-                                            <span class="badge bg-warning">Premium</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">Grátis</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if download.file_path %}
-                                        <a href="{% url 'download_file' download.file_path|slice:'7:' %}" 
-                                           class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-download"></i>
-                                        </a>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-</div>
-
-<!-- Modal de Erro -->
-<div class="modal fade" id="errorModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    Erro
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="error-message">
-                <!-- Mensagem de erro será inserida aqui -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    Fechar
-                </button>
+            <div class="card-body">
+                <ol class="mb-0">
+                    <li>Abra o Spotify e encontre a música desejada</li>
+                    <li>Clique em "Compartilhar" → "Copiar link"</li>
+                    <li>Cole o link no campo acima</li>
+                    <li>Clique em "Baixar Música" e aguarde</li>
+                </ol>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
 <script>
-$(document).ready(function() {
-    let currentSpotifyUrl = '';
-    let currentContentType = '';
-    let currentData = {};
+document.getElementById('downloadForm').addEventListener('submit', function(e) {
+    const btn = document.getElementById('downloadBtn');
+    const status = document.getElementById('downloadStatus');
     
-    // Form submission
-    $('#download-form').on('submit', function(e) {
-        e.preventDefault();
-        
-        const spotifyUrl = $('#spotify_url').val().trim();
-        
-        if (!spotifyUrl) {
-            showError('Por favor, cole um link do Spotify');
-            return;
-        }
-        
-        currentSpotifyUrl = spotifyUrl;
-        getSpotifyInfo(spotifyUrl);
-    });
-    
-    // Get Spotify info via AJAX
-    function getSpotifyInfo(url) {
-        $('#loading-spinner').removeClass('d-none');
-        $('#music-preview').addClass('d-none');
-        $('#download-results').addClass('d-none');
-        
-        $.ajax({
-            url: '{% url "spotify_info" %}',
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
-                'Content-Type': 'application/json'
-            },
-            data: JSON.stringify({ spotify_url: url }),
-            success: function(response) {
-                $('#loading-spinner').addClass('d-none');
-                
-                if (response.success) {
-                    currentContentType = response.type;
-                    currentData = response;
-                    displayPreview(response);
-                } else {
-                    showError(response.message);
-                }
-            },
-            error: function(xhr) {
-                $('#loading-spinner').addClass('d-none');
-                
-                let errorMessage = 'Erro de conexão. Tente novamente.';
-                try {
-                    const error = JSON.parse(xhr.responseText);
-                    errorMessage = error.message || errorMessage;
-                } catch(e) {
-                    console.error('Erro ao analisar resposta:', e);
-                }
-                
-                showError(errorMessage);
-            }
-        });
-    }
-    
-    // Display preview content
-    function displayPreview(data) {
-        let html = '';
-        let title = '';
-        
-        if (data.type === 'track') {
-            const track = data.track_info;
-            title = 'Música Individual';
-            
-            html = `
-                <div class="music-preview">
-                    <div class="row align-items-center">
-                        <div class="col-md-3 text-center">
-                            <img src="${track.cover_url}" class="img-fluid rounded" alt="Capa do álbum" style="max-width: 200px;">
-                        </div>
-                        <div class="col-md-9">
-                            <h4 class="fw-bold text-primary">${track.name}</h4>
-                            <p class="text-muted mb-2">
-                                <i class="fas fa-user me-1"></i>
-                                <strong>Artista:</strong> ${Array.isArray(track.artists) ? track.artists.join(', ') : track.artists}
-                            </p>
-                            <p class="text-muted mb-2">
-                                <i class="fas fa-compact-disc me-1"></i>
-                                <strong>Álbum:</strong> ${track.album}
-                            </p>
-                            <p class="text-muted mb-2">
-                                <i class="fas fa-clock me-1"></i>
-                                <strong>Duração:</strong> ${track.duration}
-                            </p>
-                            <p class="text-muted mb-3">
-                                <i class="fas fa-calendar me-1"></i>
-                                <strong>Ano:</strong> ${track.year}
-                            </p>
-                            <button class="btn download-btn" onclick="downloadTrack('${currentSpotifyUrl}')">
-                                <i class="fas fa-download me-2"></i>
-                                Baixar Agora
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        } 
-        else if (data.type === 'playlist') {
-            const playlist = data.playlist_info;
-            title = `Playlist: ${playlist.name}`;
-            
-            html = `
-                <div class="music-preview">
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <h4 class="fw-bold text-primary">
-                                <i class="fas fa-list me-2"></i>
-                                ${playlist.name}
-                            </h4>
-                            <p class="text-muted">
-                                <i class="fas fa-music me-1"></i>
-                                ${playlist.total_tracks} música(s) • Por: ${playlist.owner}
-                            </p>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-12">
-                            <h6 class="fw-bold mb-3">Músicas na Playlist:</h6>
-                            <div style="max-height: 400px; overflow-y: auto;">
-            `;
-            
-            playlist.tracks.forEach(function(track, index) {
-                html += `
-                    <div class="playlist-track">
-                        <div class="row align-items-center">
-                            <div class="col-md-1 text-center">
-                                <span class="fw-bold text-muted">${track.index || index + 1}</span>
-                            </div>
-                            <div class="col-md-2">
-                                <img src="${track.cover_url}" class="track-cover" alt="Capa">
-                            </div>
-                            <div class="col-md-6">
-                                <h6 class="mb-1 fw-bold">${track.name}</h6>
-                                <p class="text-muted mb-1 small">${Array.isArray(track.artists) ? track.artists.join(', ') : track.artists}</p>
-                                <small class="text-muted">${track.album} • ${track.duration}</small>
-                            </div>
-                            <div class="col-md-3 text-end">
-                                <button class="btn btn-sm btn-outline-primary" onclick="downloadPlaylistTrack(${index})">
-                                    <i class="fas fa-download me-1"></i>
-                                    Baixar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            html += `
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row mt-4">
-                        <div class="col-12 text-center">
-                            <button class="btn download-btn btn-lg" onclick="downloadAllPlaylist()">
-                                <i class="fas fa-download me-2"></i>
-                                Baixar Toda a Playlist (${playlist.total_tracks} músicas)
-                            </button>
-                            <div class="form-text mt-2">
-                                ${playlist.total_tracks > 1 ? 'Requer conta Premium para downloads múltiplos' : ''}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-        else if (data.type === 'album') {
-            const album = data.album_info;
-            title = `Álbum: ${album.name}`;
-            
-            html = `
-                <div class="music-preview">
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <h4 class="fw-bold text-primary">
-                                <i class="fas fa-compact-disc me-2"></i>
-                                ${album.name}
-                            </h4>
-                            <p class="text-muted">
-                                <i class="fas fa-user me-1"></i>
-                                ${album.total_tracks} música(s) • Por: ${album.artist}
-                            </p>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-12">
-                            <h6 class="fw-bold mb-3">Faixas do Álbum:</h6>
-                            <div style="max-height: 400px; overflow-y: auto;">
-            `;
-            
-            album.tracks.forEach(function(track, index) {
-                html += `
-                    <div class="playlist-track">
-                        <div class="row align-items-center">
-                            <div class="col-md-1 text-center">
-                                <span class="fw-bold text-muted">${track.index || index + 1}</span>
-                            </div>
-                            <div class="col-md-2">
-                                <img src="${track.cover_url}" class="track-cover" alt="Capa">
-                            </div>
-                            <div class="col-md-6">
-                                <h6 class="mb-1 fw-bold">${track.name}</h6>
-                                <p class="text-muted mb-1 small">${Array.isArray(track.artists) ? track.artists.join(', ') : track.artists}</p>
-                                <small class="text-muted">${track.duration}</small>
-                            </div>
-                            <div class="col-md-3 text-end">
-                                <button class="btn btn-sm btn-outline-primary" onclick="downloadPlaylistTrack(${index})">
-                                    <i class="fas fa-download me-1"></i>
-                                    Baixar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            html += `
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row mt-4">
-                        <div class="col-12 text-center">
-                            <button class="btn download-btn btn-lg" onclick="downloadAllPlaylist()">
-                                <i class="fas fa-download me-2"></i>
-                                Baixar Todo o Álbum (${album.total_tracks} músicas)
-                            </button>
-                            <div class="form-text mt-2">
-                                ${album.total_tracks > 1 ? 'Requer conta Premium para downloads múltiplos' : ''}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-        
-        $('#preview-title').text(title);
-        $('#preview-content').html(html);
-        $('#music-preview').removeClass('d-none');
-        
-        // Scroll to preview
-        $('#music-preview')[0].scrollIntoView({ behavior: 'smooth' });
-    }
-    
-    // Download functions
-    window.downloadTrack = function(url) {
-        performDownload(url);
-    };
-    
-    window.downloadPlaylistTrack = function(trackIndex) {
-        if (currentContentType === 'playlist' && currentData.playlist_info) {
-            const track = currentData.playlist_info.tracks[trackIndex];
-            if (track.spotify_url) {
-                performDownload(track.spotify_url);
-            } else {
-                showError('URL da música não disponível');
-            }
-        }
-    };
-    
-    window.downloadAllPlaylist = function() {
-        showError('Download de playlist completa ainda não implementado. Baixe as músicas individualmente.');
-    };
-    
-    function performDownload(url) {
-        // Show loading on the button
-        const buttons = document.querySelectorAll('.download-btn, .btn-outline-primary');
-        buttons.forEach(btn => {
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Baixando...';
-        });
-        
-        $.ajax({
-            url: '{% url "download_music" %}',
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
-                'Content-Type': 'application/json'
-            },
-            data: JSON.stringify({ spotify_url: url }),
-            success: function(response) {
-                // Restore buttons
-                buttons.forEach(btn => {
-                    btn.disabled = false;
-                    btn.innerHTML = btn.classList.contains('btn-sm') ? 
-                        '<i class="fas fa-download me-1"></i>Baixar' : 
-                        '<i class="fas fa-download me-2"></i>Baixar Agora';
-                });
-                
-                if (response.success) {
-                    displayDownloadResult(response);
-                } else {
-                    if (response.needs_subscription) {
-                        showSubscriptionModal(response.message);
-                    } else {
-                        showError(response.message);
-                    }
-                }
-            },
-            error: function(xhr) {
-                // Restore buttons
-                buttons.forEach(btn => {
-                    btn.disabled = false;
-                    btn.innerHTML = btn.classList.contains('btn-sm') ? 
-                        '<i class="fas fa-download me-1"></i>Baixar' : 
-                        '<i class="fas fa-download me-2"></i>Baixar Agora';
-                });
-                
-                let errorMessage = 'Erro no download. Tente novamente.';
-                try {
-                    const error = JSON.parse(xhr.responseText);
-                    errorMessage = error.message || errorMessage;
-                } catch(e) {
-                    console.error('Erro ao analisar resposta:', e);
-                }
-                
-                showError(errorMessage);
-            }
-        });
-    }
-    
-    function displayDownloadResult(data) {
-        const html = `
-            <div class="text-center">
-                <i class="fas fa-check-circle text-success" style="font-size: 3rem;"></i>
-                <h4 class="mt-3 text-success">Download Concluído!</h4>
-                <p class="text-muted mb-4">${data.message}</p>
-                
-                <div class="d-grid gap-2 d-md-block">
-                    <a href="${data.download_url}" class="btn btn-success btn-lg">
-                        <i class="fas fa-download me-2"></i>
-                        Baixar Arquivo
-                    </a>
-                    <button class="btn btn-secondary btn-lg" onclick="location.reload()">
-                        <i class="fas fa-redo me-2"></i>
-                        Baixar Outra
-                    </button>
-                </div>
-                
-                <div class="mt-4 p-3 bg-light rounded">
-                    <h6>Informações do Arquivo:</h6>
-                    <p class="mb-1"><strong>Nome:</strong> ${data.file_name}</p>
-                    <p class="mb-1"><strong>Tipo:</strong> ${data.is_premium_download ? 'Premium' : 'Gratuito'}</p>
-                    <p class="mb-0"><strong>Formato:</strong> MP3</p>
-                </div>
-            </div>
-        `;
-        
-        $('#results-content').html(html);
-        $('#download-results').removeClass('d-none');
-        $('#music-preview').addClass('d-none');
-        
-        // Scroll to results
-        $('#download-results')[0].scrollIntoView({ behavior: 'smooth' });
-    }
-    
-    function showError(message) {
-        $('#error-message').html(`
-            <div class="d-flex align-items-start">
-                <i class="fas fa-exclamation-triangle text-warning me-3 mt-1"></i>
-                <div>
-                    <p class="mb-0">${message}</p>
-                </div>
-            </div>
-        `);
-        $('#errorModal').modal('show');
-    }
-    
-    function showSubscriptionModal(message) {
-        $('#error-message').html(`
-            <div class="text-center">
-                <i class="fas fa-star text-warning" style="font-size: 3rem;"></i>
-                <h5 class="mt-3">Upgrade para Premium</h5>
-                <p class="text-muted">${message}</p>
-                <a href="{% url 'pagamento' %}" class="btn btn-warning btn-lg">
-                    <i class="fas fa-crown me-2"></i>
-                    Assinar Premium
-                </a>
-            </div>
-        `);
-        $('#errorModal').modal('show');
-    }
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+    status.style.display = 'block';
 });
 </script>
 {% endblock %}

@@ -1,0 +1,59 @@
+<!-- ATIVAR PREMIUM - templates/baixafy/ativar_premium.html -->
+{% extends 'base.html' %}
+
+{% block title %}Ativar Premium - BaixaFy{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header text-center bg-warning text-dark">
+                <h4><i class="fas fa-crown"></i> Assinar Premium</h4>
+            </div>
+            <div class="card-body text-center">
+                <h2 class="text-warning mb-4">R$ 9,90/mês</h2>
+                
+                <div class="mb-4">
+                    <h5>O que você ganha:</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <i class="fas fa-check-circle text-success"></i>
+                            Downloads ilimitados
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check-circle text-success"></i>
+                            Qualidade MP3 320kbps
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check-circle text-success"></i>
+                            Sem anúncios
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check-circle text-success"></i>
+                            Suporte prioritário
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Simulação de Pagamento</strong><br>
+                    Esta é uma demonstração. Em produção, aqui seria integrado
+                    com um gateway de pagamento real (Stripe, PagSeguro, etc.).
+                </div>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-warning btn-lg">
+                        <i class="fas fa-crown"></i> Ativar Premium por 30 dias
+                    </button>
+                </form>
+                
+                <p class="mt-3 text-muted">
+                    <small>Cancele a qualquer momento</small>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
