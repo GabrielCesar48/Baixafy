@@ -1,0 +1,260 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}BaixaFy - Baixe suas músicas do Spotify{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --spotify-green: #1db954;
+            --spotify-dark: #121212;
+            --spotify-light: #1e1e1e;
+            --text-light: #b3b3b3;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--spotify-dark) 0%, var(--spotify-light) 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.8rem;
+            color: var(--spotify-green) !important;
+        }
+        
+        .navbar {
+            background: rgba(18, 18, 18, 0.95) !important;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(29, 185, 84, 0.3);
+        }
+        
+        .btn-spotify {
+            background: var(--spotify-green);
+            border: none;
+            color: white;
+            font-weight: 600;
+            padding: 12px 30px;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-spotify:hover {
+            background: #1ed760;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(29, 185, 84, 0.3);
+        }
+        
+        .card {
+            background: rgba(30, 30, 30, 0.8);
+            border: 1px solid rgba(29, 185, 84, 0.2);
+            backdrop-filter: blur(10px);
+        }
+        
+        .form-control {
+            background: rgba(30, 30, 30, 0.8);
+            border: 1px solid rgba(29, 185, 84, 0.3);
+            color: white;
+            border-radius: 10px;
+        }
+        
+        .form-control:focus {
+            background: rgba(30, 30, 30, 0.9);
+            border-color: var(--spotify-green);
+            color: white;
+            box-shadow: 0 0 0 0.2rem rgba(29, 185, 84, 0.25);
+        }
+        
+        .form-control::placeholder {
+            color: var(--text-light);
+        }
+        
+        .alert {
+            border-radius: 15px;
+            border: none;
+        }
+        
+        .text-spotify {
+            color: var(--spotify-green) !important;
+        }
+        
+        .bg-spotify {
+            background: var(--spotify-green) !important;
+        }
+        
+        .badge {
+            border-radius: 20px;
+            padding: 8px 15px;
+        }
+        
+        .footer {
+            background: rgba(18, 18, 18, 0.95);
+            border-top: 1px solid rgba(29, 185, 84, 0.3);
+            margin-top: auto;
+        }
+        
+        .music-card {
+            background: rgba(30, 30, 30, 0.9);
+            border: 1px solid rgba(29, 185, 84, 0.2);
+            border-radius: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .music-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(29, 185, 84, 0.2);
+        }
+        
+        .loading-spinner {
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .navbar-brand {
+                font-size: 1.5rem;
+            }
+            
+            .btn-spotify {
+                padding: 10px 20px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="d-flex flex-column">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'home' %}">
+                <i class="fas fa-music me-2"></i>BaixaFy
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    {% if user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'painel' %}">
+                                <i class="fas fa-tachometer-alt me-1"></i>Painel
+                            </a>
+                        </li>
+                        
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'historico' %}">
+                                <i class="fas fa-history me-1"></i>Histórico
+                            </a>
+                        </li>
+                        
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-user me-1"></i>{{ user.first_name|default:user.username }}
+                                {% if user.is_premium_active %}
+                                    <span class="badge bg-spotify ms-1">Premium</span>
+                                {% else %}
+                                    <span class="badge bg-secondary ms-1">Gratuito</span>
+                                {% endif %}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-dark">
+                                <li><a class="dropdown-item" href="{% url 'profile' %}">
+                                    <i class="fas fa-user-circle me-2"></i>Meu Perfil
+                                </a></li>
+                                
+                                {% if not user.is_premium_active %}
+                                <li><a class="dropdown-item text-spotify" href="{% url 'pagamento' %}">
+                                    <i class="fas fa-crown me-2"></i>Assinar Premium
+                                </a></li>
+                                {% endif %}
+                                
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{% url 'logout' %}">
+                                    <i class="fas fa-sign-out-alt me-2"></i>Sair
+                                </a></li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'login' %}">
+                                <i class="fas fa-sign-in-alt me-1"></i>Entrar
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="btn btn-spotify ms-2" href="{% url 'register' %}">
+                                <i class="fas fa-user-plus me-1"></i>Cadastrar
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Messages -->
+    {% if messages %}
+        <div class="container mt-3">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    <i class="fas fa-info-circle me-2"></i>{{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    
+    <!-- Main Content -->
+    <main class="flex-grow-1">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Footer -->
+    <footer class="footer py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5 class="text-spotify">
+                        <i class="fas fa-music me-2"></i>BaixaFy
+                    </h5>
+                    <p class="text-muted">
+                        A maneira mais fácil de baixar suas músicas favoritas do Spotify.
+                        Simples, rápido e intuitivo.
+                    </p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="text-muted mb-0">
+                        &copy; 2024 BaixaFy. Feito com <i class="fas fa-heart text-danger"></i> para amantes da música.
+                    </p>
+                    <small class="text-muted">
+                        Este serviço utiliza spotDL para conversão de áudio via YouTube.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- jQuery -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

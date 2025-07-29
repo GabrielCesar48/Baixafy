@@ -1,0 +1,340 @@
+<!-- templates/core/home.html -->
+{% extends 'base.html' %}
+
+{% block title %}BaixaFy - Baixe suas músicas do Spotify gratuitamente{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="row align-items-center min-vh-75">
+            <div class="col-lg-6">
+                <div class="text-center text-lg-start">
+                    <h1 class="display-4 fw-bold mb-4">
+                        <span class="text-spotify">BaixaFy</span><br>
+                        Suas músicas do <span class="text-spotify">Spotify</span><br>
+                        no seu dispositivo
+                    </h1>
+                    
+                    <p class="lead mb-4 text-light opacity-75">
+                        Cole o link de qualquer música ou playlist do Spotify e baixe em alta qualidade. 
+                        Simples, rápido e gratuito para começar!
+                    </p>
+                    
+                    <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center justify-content-lg-start">
+                        {% if not user.is_authenticated %}
+                            <a href="{% url 'register' %}" class="btn btn-spotify btn-lg">
+                                <i class="fas fa-rocket me-2"></i>Começar Grátis
+                            </a>
+                            <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg">
+                                <i class="fas fa-sign-in-alt me-2"></i>Já tenho conta
+                            </a>
+                        {% else %}
+                            <a href="{% url 'painel' %}" class="btn btn-spotify btn-lg">
+                                <i class="fas fa-tachometer-alt me-2"></i>Ir para o Painel
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-6">
+                <div class="text-center">
+                    <!-- Hero Image/Animation -->
+                    <div class="position-relative">
+                        <div class="music-card p-4 mx-auto" style="max-width: 400px;">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="rounded-circle bg-spotify d-flex align-items-center justify-content-center me-3" style="width: 60px; height: 60px;">
+                                    <i class="fas fa-music fa-lg text-white"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1 fw-bold">Sua Música Favorita</h6>
+                                    <small class="text-muted">Artista Preferido</small>
+                                </div>
+                            </div>
+                            
+                            <div class="progress mb-3" style="height: 8px;">
+                                <div class="progress-bar bg-spotify" role="progressbar" style="width: 65%"></div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">1:23</small>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-spotify rounded-circle">
+                                        <i class="fas fa-backward"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-spotify rounded-circle">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-spotify rounded-circle">
+                                        <i class="fas fa-forward"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted">3:47</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Floating icons -->
+                        <div class="position-absolute top-0 start-0 text-spotify opacity-25">
+                            <i class="fas fa-music fa-2x"></i>
+                        </div>
+                        <div class="position-absolute top-50 end-0 text-spotify opacity-25">
+                            <i class="fas fa-headphones fa-2x"></i>
+                        </div>
+                        <div class="position-absolute bottom-0 start-50 text-spotify opacity-25">
+                            <i class="fas fa-download fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="h1 fw-bold">Por que escolher o <span class="text-spotify">BaixaFy</span>?</h2>
+            <p class="lead text-light opacity-75">As melhores funcionalidades para sua experiência musical</p>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="music-card h-100 p-4 text-center">
+                    <div class="rounded-circle bg-spotify d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 80px; height: 80px;">
+                        <i class="fas fa-zap fa-2x text-white"></i>
+                    </div>
+                    <h5 class="fw-bold mb-3">Super Rápido</h5>
+                    <p class="text-muted">
+                        Downloads em alta velocidade. Cole o link e em segundos sua música está pronta!
+                    </p>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="music-card h-100 p-4 text-center">
+                    <div class="rounded-circle bg-spotify d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 80px; height: 80px;">
+                        <i class="fas fa-gem fa-2x text-white"></i>
+                    </div>
+                    <h5 class="fw-bold mb-3">Alta Qualidade</h5>
+                    <p class="text-muted">
+                        Áudio em MP3 com qualidade premium. Sua música como ela deve ser ouvida.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="music-card h-100 p-4 text-center">
+                    <div class="rounded-circle bg-spotify d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 80px; height: 80px;">
+                        <i class="fas fa-list fa-2x text-white"></i>
+                    </div>
+                    <h5 class="fw-bold mb-3">Playlists Completas</h5>
+                    <p class="text-muted">
+                        Baixe playlists inteiras de uma vez. Organize sua música como quiser.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How it Works Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="h1 fw-bold">Como funciona?</h2>
+            <p class="lead text-light opacity-75">Em apenas 3 passos simples</p>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="text-center">
+                    <div class="rounded-circle bg-spotify d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 100px; height: 100px;">
+                        <span class="fw-bold h2 text-white">1</span>
+                    </div>
+                    <h5 class="fw-bold mb-3">Cole o Link</h5>
+                    <p class="text-muted">
+                        Copie qualquer link do Spotify (música, playlist ou álbum) e cole em nosso site.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="text-center">
+                    <div class="rounded-circle bg-spotify d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 100px; height: 100px;">
+                        <span class="fw-bold h2 text-white">2</span>
+                    </div>
+                    <h5 class="fw-bold mb-3">Visualize & Confirme</h5>
+                    <p class="text-muted">
+                        Veja as informações da música (capa, artista, álbum) e confirme o download.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="text-center">
+                    <div class="rounded-circle bg-spotify d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 100px; height: 100px;">
+                        <span class="fw-bold h2 text-white">3</span>
+                    </div>
+                    <h5 class="fw-bold mb-3">Baixe & Curta</h5>
+                    <p class="text-muted">
+                        Download instantâneo em MP3. Sua música pronta para ouvir offline!
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Pricing Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="h1 fw-bold">Planos que cabem no seu bolso</h2>
+            <p class="lead text-light opacity-75">Comece grátis, upgrade quando quiser</p>
+        </div>
+        
+        <div class="row justify-content-center g-4">
+            <div class="col-lg-5">
+                <div class="music-card h-100 p-4">
+                    <div class="text-center mb-4">
+                        <h4 class="fw-bold">Gratuito</h4>
+                        <div class="h2 fw-bold text-spotify">R$ 0</div>
+                        <small class="text-muted">Para sempre</small>
+                    </div>
+                    
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <i class="fas fa-check text-spotify me-2"></i>
+                            1 música gratuita para testar
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-spotify me-2"></i>
+                            Visualização de metadados
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-spotify me-2"></i>
+                            Qualidade padrão MP3
+                        </li>
+                    </ul>
+                    
+                    <div class="text-center mt-4">
+                        <a href="{% url 'register' %}" class="btn btn-outline-spotify w-100">
+                            Começar Grátis
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-5">
+                <div class="music-card h-100 p-4 position-relative">
+                    <div class="position-absolute top-0 start-50 translate-middle">
+                        <span class="badge bg-spotify px-3 py-2">Mais Popular</span>
+                    </div>
+                    
+                    <div class="text-center mb-4 mt-3">
+                        <h4 class="fw-bold">Premium</h4>
+                        <div class="h2 fw-bold text-spotify">R$ 9,90</div>
+                        <small class="text-muted">por 30 dias</small>
+                    </div>
+                    
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <i class="fas fa-check text-spotify me-2"></i>
+                            Downloads ilimitados
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-spotify me-2"></i>
+                            Playlists completas
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-spotify me-2"></i>
+                            Alta qualidade (192kbps)
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-spotify me-2"></i>
+                            Histórico completo
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-spotify me-2"></i>
+                            Suporte prioritário
+                        </li>
+                    </ul>
+                    
+                    <div class="text-center mt-4">
+                        <a href="{% url 'register' %}" class="btn btn-spotify w-100">
+                            Assinar Premium
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="music-card p-5 text-center">
+            <h2 class="h1 fw-bold mb-4">
+                Pronto para baixar suas músicas favoritas?
+            </h2>
+            <p class="lead mb-4 text-light opacity-75">
+                Junte-se a milhares de usuários que já descobriram a maneira mais fácil de ter sua música offline.
+            </p>
+            
+            {% if not user.is_authenticated %}
+                <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
+                    <a href="{% url 'register' %}" class="btn btn-spotify btn-lg">
+                        <i class="fas fa-rocket me-2"></i>Começar Agora - É Grátis!
+                    </a>
+                    <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-sign-in-alt me-2"></i>Fazer Login
+                    </a>
+                </div>
+            {% else %}
+                <a href="{% url 'painel' %}" class="btn btn-spotify btn-lg">
+                    <i class="fas fa-tachometer-alt me-2"></i>Ir para o Painel
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .btn-outline-spotify {
+        border: 2px solid var(--spotify-green);
+        color: var(--spotify-green);
+        background: transparent;
+    }
+    
+    .btn-outline-spotify:hover {
+        background: var(--spotify-green);
+        color: white;
+    }
+    
+    .min-vh-75 {
+        min-height: 75vh;
+    }
+    
+    @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+    }
+    
+    .position-absolute i {
+        animation: float 3s ease-in-out infinite;
+    }
+    
+    .position-absolute:nth-child(2) i {
+        animation-delay: 1s;
+    }
+    
+    .position-absolute:nth-child(3) i {
+        animation-delay: 2s;
+    }
+</style>
+{% endblock %}
