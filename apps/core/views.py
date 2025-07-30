@@ -1,287 +1,547 @@
-# apps/core/views.py - VERSÃO SIMPLIFICADA
-import json
+"""
+Views para BaixaFy Desktop Application
+Sistema de downloads com controle de licença local
+"""
+
 import os
-import uuid
-import zipfile
-import threading
-import time
+import json
+import subprocess
+import logging
 from pathlib import Path
-from django.shortcuts import render
-from django.http import JsonResponse, FileResponse, Http404
-from django.views.decorators.csrf import csrf_exempt
-from django.conf import settings
+from urllib.parse import urlparse
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import login, authenticate, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib import messages
+from django.http import JsonResponse, HttpResponse, FileResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.conf import settings
+from django.utils import timezone
+from django.core.paginator import Paginator
 
-from apps.baixador.services import get_spotify_service
+from .models import DesktopLicense, DownloadHistory, AppSettings
+from .forms import ActivationForm, DownloadForm
+from .license_manager import get_license_status, validate_license
 
-# Dicionário global para armazenar progresso dos downloads
-download_progress_tracker = {}
+# Configurar logging
+logger = logging.getLogger('baixafy')
+
 
 def home(request):
     """
-    Página única do BaixaFy - Interface simples para downloads.
+    Página inicial - Dashboard do usuário
     """
-    # Verificar se serviço está funcionando
-    service = get_spotify_service()
-    service_status = None
+    if not request.user.is_authenticated:
+        return redirect('login')
     
-    if service:
-        service_status = service.health_check()
+    try:
+        license = request.user.desktop_license
+    except:
+        # Criar licença se não existir
+        license = DesktopLicense.objects.create(
+            user=request.user,
+            license_type='trial',
+            max_downloads=10  # 10 downloads no trial
+        )
+    
+    # Verificar status da licença segura
+    secure_license_status = get_license_status()
+    
+    # Estatísticas do usuário
+    recent_downloads = DownloadHistory.objects.filter(user=request.user)[:5]
+    total_downloads = DownloadHistory.objects.filter(user=request.user).count()
+    
+    # Determinar status real baseado na licença segura
+    if secure_license_status['status'] == 'active':
+        can_download = True
+        downloads_remaining = float('inf')  # Ilimitado
+        days_remaining = secure_license_status['days_remaining']
+        license_message = f"Licença Premium ativa ({days_remaining} dias restantes)"
+    elif secure_license_status['status'] == 'expired':
+        can_download = False
+        downloads_remaining = 0
+        days_remaining = 0
+        license_message = "Licença expirada - Renove para continuar"
+    else:  # trial
+        can_download = license.downloads_used < 10
+        downloads_remaining = 10 - license.downloads_used
+        days_remaining = 0
+        license_message = f"Modo Trial ({downloads_remaining} downloads restantes)"
     
     context = {
-        'service_status': service_status,
+        'license': license,
+        'recent_downloads': recent_downloads,
+        'total_downloads': total_downloads,
+        'can_download': can_download,
+        'downloads_remaining': downloads_remaining,
+        'days_remaining': days_remaining,
+        'license_message': license_message,
+        'secure_license_status': secure_license_status,
     }
     
-    # Mostrar aviso se houver problema
-    if not service or (service_status and service_status.get('status') == 'error'):
-        messages.warning(
-            request, 
-            '⚠️ Serviço temporariamente indisponível. Verifique se FFmpeg está instalado.'
-        )
+    return render(request, 'core/home.html', context)
+
+
+def register_view(request):
+    """
+    Registro de novo usuário
+    """
+    if request.user.is_authenticated:
+        return redirect('home')
     
-    return render(request, 'home.html', context)
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            username = form.cleaned_data.get('username')
+            messages.success(request, f'Conta criada para {username}! Você tem 1 download grátis.')
+            # Login automático após registro
+            user = authenticate(username=user.username, password=form.cleaned_data['password1'])
+            if user:
+                login(request, user)
+                return redirect('home')
+    else:
+        form = UserCreationForm()
+    
+    return render(request, 'registration/register.html', {'form': form})
 
 
-@csrf_exempt
+def login_view(request):
+    """
+    Login do usuário
+    """
+    if request.user.is_authenticated:
+        return redirect('home')
+    
+    if request.method == 'POST':
+        form = AuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            login(request, user)
+            messages.success(request, f'Bem-vindo de volta, {user.username}!')
+            return redirect('home')
+        else:
+            messages.error(request, 'Usuário ou senha inválidos.')
+    else:
+        form = AuthenticationForm()
+    
+    return render(request, 'registration/login.html', {'form': form})
+
+
+def logout_view(request):
+    """
+    Logout do usuário
+    """
+    logout(request)
+    messages.info(request, 'Você saiu da sua conta.')
+    return redirect('login')
+
+
+@login_required
 def download_music(request):
     """
-    Inicia o download de música/playlist via AJAX.
-    Funciona igual ao script baixar.py, mas via web.
+    Página principal de download de música com sistema de licenciamento seguro
     """
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Método não permitido'}, status=405)
-    
     try:
-        data = json.loads(request.body)
-        spotify_url = data.get('url', '').strip()
-        
-        if not spotify_url:
-            return JsonResponse({'error': 'URL do Spotify é obrigatória'}, status=400)
-        
-        # Validar URL do Spotify
-        if not _is_valid_spotify_url(spotify_url):
-            return JsonResponse({'error': 'URL inválida. Use links do Spotify.'}, status=400)
-        
-        # Gerar ID único para este download
-        download_id = str(uuid.uuid4())
-        
-        # Inicializar progresso
-        download_progress_tracker[download_id] = {
-            'status': 'starting',
-            'progress': 0,
-            'message': 'Iniciando download...',
-            'current_track': '',
-            'total_tracks': 0,
-            'completed_tracks': 0,
-            'download_path': None,
-            'error': None
-        }
-        
-        # Iniciar download em thread separada
-        thread = threading.Thread(
-            target=_process_download,
-            args=(spotify_url, download_id)
+        license = request.user.desktop_license
+    except:
+        license = DesktopLicense.objects.create(
+            user=request.user,
+            license_type='trial',
+            max_downloads=10
         )
-        thread.daemon = True
-        thread.start()
+    
+    # Verificar licença segura
+    secure_license_status = get_license_status()
+    
+    # Determinar se pode baixar
+    can_download = False
+    error_message = None
+    
+    if secure_license_status['status'] == 'active':
+        can_download = True  # Licença premium ativa
+    elif secure_license_status['status'] == 'trial':
+        # Modo trial - verificar limite de 10 downloads
+        if license.downloads_used < 10:
+            can_download = True
+        else:
+            error_message = "Você já usou seus 10 downloads gratuitos! Ative sua licença para continuar."
+    else:  # expired
+        error_message = "Sua licença expirou! Renove para continuar baixando."
+    
+    if request.method == 'POST':
+        form = DownloadForm(request.POST)
+        if form.is_valid():
+            if not can_download:
+                messages.error(request, error_message)
+                return redirect('activate_license')
+            
+            spotify_url = form.cleaned_data['spotify_url']
+            
+            # Processar download
+            download_result = process_download(request.user, spotify_url)
+            
+            if download_result['success']:
+                messages.success(request, f'✅ Download concluído: {download_result["track_name"]}')
+                
+                # Incrementar contador apenas se for trial
+                if secure_license_status['status'] == 'trial':
+                    license.increment_download_count()
+                
+                return redirect('download_history')
+            else:
+                messages.error(request, f'❌ Erro no download: {download_result["error"]}')
+    else:
+        form = DownloadForm()
+    
+    # Calcular downloads restantes
+    if secure_license_status['status'] == 'active':
+        downloads_remaining = float('inf')  # Ilimitado
+    else:
+        downloads_remaining = max(0, 10 - license.downloads_used)
+    
+    context = {
+        'form': form,
+        'license': license,
+        'can_download': can_download,
+        'downloads_remaining': downloads_remaining,
+        'error_message': error_message,
+        'secure_license_status': secure_license_status,
+    }
+    
+    return render(request, 'core/download.html', context)
+
+
+def process_download(user, spotify_url):
+    """
+    Processa o download da música usando spotDL
+    
+    Args:
+        user: Usuário que está baixando
+        spotify_url: URL do Spotify
+    
+    Returns:
+        dict: Resultado do download
+    """
+    try:
+        # Criar registro de download
+        download_record = DownloadHistory.objects.create(
+            user=user,
+            spotify_url=spotify_url,
+            status='pending'
+        )
         
-        return JsonResponse({
-            'success': True,
-            'download_id': download_id,
-            'message': 'Download iniciado com sucesso!'
-        })
+        # Preparar diretório de download
+        downloads_dir = settings.BAIXAFY_SETTINGS['DOWNLOADS_PATH']
+        user_dir = downloads_dir / f'user_{user.id}'
+        user_dir.mkdir(exist_ok=True)
         
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'Dados JSON inválidos'}, status=400)
+        # Atualizar status
+        download_record.status = 'downloading'
+        download_record.save()
+        
+        # Comando spotDL
+        spotdl_cmd = [
+            'python', '-m', 'spotdl',
+            '--output', str(user_dir),
+            '--format', 'mp3',
+            '--bitrate', '320k',
+            spotify_url
+        ]
+        
+        logger.info(f"Executando comando: {' '.join(spotdl_cmd)}")
+        
+        # Executar spotDL
+        result = subprocess.run(
+            spotdl_cmd,
+            capture_output=True,
+            text=True,
+            timeout=300,  # 5 minutos timeout
+            cwd=str(settings.BASE_DIR)
+        )
+        
+        if result.returncode == 0:
+            # Sucesso - encontrar arquivo baixado
+            mp3_files = list(user_dir.glob('*.mp3'))
+            if mp3_files:
+                latest_file = max(mp3_files, key=os.path.getctime)
+                
+                # Extrair informações do arquivo
+                track_info = extract_track_info(str(latest_file))
+                
+                # Atualizar registro
+                download_record.track_name = track_info.get('title', 'Unknown')
+                download_record.artist_name = track_info.get('artist', 'Unknown')
+                download_record.album_name = track_info.get('album', 'Unknown')
+                download_record.file_path = str(latest_file)
+                download_record.file_size = latest_file.stat().st_size if latest_file.exists() else 0
+                download_record.status = 'completed'
+                download_record.save()
+                
+                logger.info(f"Download concluído: {latest_file}")
+                
+                return {
+                    'success': True,
+                    'track_name': download_record.track_name,
+                    'file_path': str(latest_file),
+                    'download_id': download_record.id
+                }
+            else:
+                raise Exception("Nenhum arquivo MP3 encontrado após download")
+        else:
+            raise Exception(f"spotDL falhou: {result.stderr}")
+            
+    except subprocess.TimeoutExpired:
+        error_msg = "Download cancelado por timeout (5 minutos)"
+        logger.error(error_msg)
+        download_record.status = 'failed'
+        download_record.error_message = error_msg
+        download_record.save()
+        return {'success': False, 'error': error_msg}
+        
     except Exception as e:
-        return JsonResponse({'error': f'Erro interno: {str(e)}'}, status=500)
+        error_msg = str(e)
+        logger.error(f"Erro no download: {error_msg}")
+        download_record.status = 'failed'
+        download_record.error_message = error_msg
+        download_record.save()
+        return {'success': False, 'error': error_msg}
 
 
-def download_progress(request):
+def extract_track_info(file_path):
     """
-    Retorna o progresso atual de um download via AJAX.
+    Extrai informações de metadata do arquivo MP3
     """
-    download_id = request.GET.get('id')
-    
-    if not download_id or download_id not in download_progress_tracker:
-        return JsonResponse({'error': 'Download não encontrado'}, status=404)
-    
-    progress_data = download_progress_tracker[download_id]
-    
-    return JsonResponse({
-        'status': progress_data['status'],
-        'progress': progress_data['progress'],
-        'message': progress_data['message'],
-        'current_track': progress_data['current_track'],
-        'total_tracks': progress_data['total_tracks'],
-        'completed_tracks': progress_data['completed_tracks'],
-        'download_path': progress_data['download_path'],
-        'error': progress_data['error']
-    })
+    try:
+        # Usar mutagen para extrair metadata (se disponível)
+        from mutagen.mp3 import MP3
+        from mutagen.id3 import ID3NoHeaderError
+        
+        audio = MP3(file_path)
+        return {
+            'title': str(audio.get('TIT2', ['Unknown'])[0]),
+            'artist': str(audio.get('TPE1', ['Unknown'])[0]),
+            'album': str(audio.get('TALB', ['Unknown'])[0]),
+        }
+    except:
+        # Fallback: extrair do nome do arquivo
+        filename = Path(file_path).stem
+        parts = filename.split(' - ')
+        if len(parts) >= 2:
+            return {
+                'artist': parts[0].strip(),
+                'title': parts[1].strip(),
+                'album': 'Unknown'
+            }
+        return {
+            'title': filename,
+            'artist': 'Unknown',
+            'album': 'Unknown'
+        }
 
 
-def download_file(request, filename):
+@login_required
+def activate_license(request):
     """
-    Serve arquivo para download e remove após o download.
+    Página de ativação de licença com sistema seguro
     """
-    file_path = Path(settings.MEDIA_ROOT) / filename
+    try:
+        license = request.user.desktop_license
+    except:
+        license = DesktopLicense.objects.create(
+            user=request.user,
+            license_type='trial',
+            max_downloads=10
+        )
     
-    if not file_path.exists():
-        raise Http404("Arquivo não encontrado")
+    # Verificar se já tem licença ativa
+    secure_license_status = get_license_status()
+    if secure_license_status['status'] == 'active':
+        messages.info(request, f'Você já tem uma licença ativa! ({secure_license_status["days_remaining"]} dias restantes)')
+        return redirect('home')
+    
+    if request.method == 'POST':
+        form = ActivationForm(request.POST)
+        if form.is_valid():
+            activation_code = form.cleaned_data['activation_code']
+            
+            # Validar com sistema seguro
+            validation_result = validate_license(activation_code)
+            
+            if validation_result['valid']:
+                # Atualizar licença local também
+                license.license_type = 'activated'
+                license.activation_code = activation_code
+                license.activation_date = timezone.now()
+                license.expiry_date = timezone.now() + timedelta(days=validation_result['days'])
+                license.max_downloads = 999999  # Ilimitado
+                license.save()
+                
+                messages.success(
+                    request, 
+                    f'🎉 Licença ativada com sucesso! '
+                    f'Você agora tem downloads ilimitados por {validation_result["days"]} dias.'
+                )
+                return redirect('home')
+            else:
+                messages.error(request, f'❌ {validation_result["error"]}')
+    else:
+        form = ActivationForm()
+    
+    context = {
+        'form': form,
+        'license': license,
+        'secure_license_status': secure_license_status,
+    }
+    
+    return render(request, 'core/activate.html', context)
+
+
+@login_required
+def download_history(request):
+    """
+    Histórico de downloads do usuário
+    """
+    downloads = DownloadHistory.objects.filter(user=request.user).order_by('-download_date')
+    
+    # Paginação
+    paginator = Paginator(downloads, 10)  # 10 downloads por página
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'downloads': page_obj.object_list,
+    }
+    
+    return render(request, 'core/history.html', context)
+
+
+@login_required
+def download_file(request, download_id):
+    """
+    Serve arquivo para download direto
+    """
+    download = get_object_or_404(DownloadHistory, id=download_id, user=request.user)
+    
+    if not download.file_exists:
+        messages.error(request, 'Arquivo não encontrado. Pode ter sido removido.')
+        return redirect('download_history')
     
     try:
+        file_path = Path(download.file_path)
         response = FileResponse(
             open(file_path, 'rb'),
             as_attachment=True,
-            filename=filename
+            filename=file_path.name
         )
-        
-        # Agendar remoção do arquivo após 1 hora
-        threading.Timer(3600, _cleanup_file, args=[file_path]).start()
-        
         return response
-        
     except Exception as e:
-        raise Http404(f"Erro ao baixar arquivo: {str(e)}")
+        logger.error(f"Erro ao servir arquivo: {e}")
+        messages.error(request, 'Erro ao baixar arquivo.')
+        return redirect('download_history')
 
 
-def _is_valid_spotify_url(url):
+@login_required
+@require_http_methods(["POST"])
+def delete_download(request, download_id):
     """
-    Valida se a URL é do Spotify.
+    Remove um download do histórico e deleta o arquivo
     """
-    return ('open.spotify.com' in url and 
-            ('track/' in url or 'playlist/' in url or 'album/' in url))
+    download = get_object_or_404(DownloadHistory, id=download_id, user=request.user)
+    
+    try:
+        # Deletar arquivo físico se existir
+        if download.file_exists:
+            os.remove(download.file_path)
+        
+        # Deletar registro
+        track_name = download.track_name or 'Unknown'
+        download.delete()
+        
+        messages.success(request, f'"{track_name}" removido com sucesso.')
+    except Exception as e:
+        logger.error(f"Erro ao deletar download: {e}")
+        messages.error(request, 'Erro ao remover arquivo.')
+    
+    return redirect('download_history')
 
 
-def _process_download(spotify_url, download_id):
+@login_required
+def profile(request):
     """
-    Processa o download em background.
-    Replica EXATAMENTE o comportamento do script baixar.py.
+    Página de perfil do usuário
     """
     try:
-        service = get_spotify_service()
-        if not service:
-            _update_progress(download_id, 'error', 0, 'Serviço indisponível')
-            return
-        
-        # Verificar health do serviço
-        health = service.health_check()
-        if health['status'] == 'error':
-            _update_progress(download_id, 'error', 0, health['message'])
-            return
-        
-        # Atualizar progresso: iniciando
-        _update_progress(download_id, 'downloading', 5, 'Verificando URL...')
-        
-        # Criar pasta temporária para o download
-        temp_dir = Path(settings.MEDIA_ROOT) / f"temp_{download_id}"
-        temp_dir.mkdir(exist_ok=True)
-        
-        # Atualizar progresso
-        _update_progress(download_id, 'downloading', 15, 'Iniciando download via SpotDL...')
-        
-        # USAR SPOTDL DIRETAMENTE (igual ao script baixar.py)
-        downloaded_files = service.download_spotify_url(spotify_url, str(temp_dir))
-        
-        if not downloaded_files:
-            _update_progress(download_id, 'error', 0, 'Nenhuma música foi baixada. Verifique a URL.')
-            _cleanup_temp_dir(temp_dir)
-            return
-        
-        # Simular progresso durante o download
-        total_files = len(downloaded_files)
-        for i, file_path in enumerate(downloaded_files, 1):
-            progress = 15 + (i * 65 // total_files)  # 15-80%
-            file_name = Path(file_path).stem
-            _update_progress(
-                download_id,
-                'downloading',
-                progress,
-                f'Processando: {file_name}',
-                file_name,
-                total_files,
-                i
-            )
-            time.sleep(0.5)  # Simular tempo de processamento
-        
-        # Criar arquivo ZIP
-        _update_progress(download_id, 'zipping', 85, 'Criando arquivo ZIP...')
-        
-        zip_filename = f"baixafy_download_{download_id[:8]}.zip"
-        zip_path = Path(settings.MEDIA_ROOT) / zip_filename
-        
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            for file_path in downloaded_files:
-                file_path_obj = Path(file_path)
-                if file_path_obj.exists():
-                    # Manter apenas o nome do arquivo no ZIP
-                    zipf.write(file_path_obj, file_path_obj.name)
-        
-        # Limpar arquivos temporários
-        _cleanup_temp_dir(temp_dir)
-        
-        # Download concluído
-        _update_progress(
-            download_id, 
-            'completed', 
-            100, 
-            f'Download concluído! {len(downloaded_files)} música(s) baixada(s).',
-            download_path=zip_filename
+        license = request.user.desktop_license
+    except:
+        license = DesktopLicense.objects.create(
+            user=request.user,
+            license_type='trial',
+            max_downloads=1
         )
-        
-    except Exception as e:
-        _update_progress(download_id, 'error', 0, f'Erro no download: {str(e)}')
-        # Tentar limpar pasta temporária mesmo com erro
-        try:
-            temp_dir = Path(settings.MEDIA_ROOT) / f"temp_{download_id}"
-            _cleanup_temp_dir(temp_dir)
-        except:
-            pass
+    
+    # Estatísticas
+    total_downloads = DownloadHistory.objects.filter(user=request.user).count()
+    successful_downloads = DownloadHistory.objects.filter(user=request.user, status='completed').count()
+    
+    context = {
+        'license': license,
+        'total_downloads': total_downloads,
+        'successful_downloads': successful_downloads,
+    }
+    
+    return render(request, 'core/profile.html', context)
 
 
-def _cleanup_temp_dir(temp_dir):
+@csrf_exempt
+@require_http_methods(["POST"])
+def check_url(request):
     """
-    Remove pasta temporária e todos os arquivos.
+    API endpoint para validar URL do Spotify
     """
     try:
-        if temp_dir.exists():
-            for file_path in temp_dir.iterdir():
-                file_path.unlink()
-            temp_dir.rmdir()
-    except Exception as e:
-        print(f"Erro ao limpar pasta temporária: {e}")
-
-
-def _update_progress(download_id, status, progress, message, current_track='', total_tracks=0, completed_tracks=0, download_path=None):
-    """
-    Atualiza o progresso do download.
-    """
-    if download_id in download_progress_tracker:
-        progress_data = download_progress_tracker[download_id]
-        progress_data.update({
-            'status': status,
-            'progress': progress,
-            'message': message,
-            'current_track': current_track,
+        data = json.loads(request.body)
+        url = data.get('url', '')
+        
+        # Validar URL do Spotify
+        parsed = urlparse(url)
+        
+        if 'spotify.com' not in parsed.netloc:
+            return JsonResponse({
+                'valid': False,
+                'error': 'URL deve ser do Spotify'
+            })
+        
+        if not any(path in parsed.path for path in ['/track/', '/playlist/', '/album/']):
+            return JsonResponse({
+                'valid': False,
+                'error': 'URL deve ser de uma música, playlist ou álbum'
+            })
+        
+        return JsonResponse({
+            'valid': True,
+            'type': 'track' if '/track/' in parsed.path else 'playlist' if '/playlist/' in parsed.path else 'album'
         })
         
-        if total_tracks > 0:
-            progress_data['total_tracks'] = total_tracks
-            
-        if completed_tracks > 0:
-            progress_data['completed_tracks'] = completed_tracks
-            
-        if download_path:
-            progress_data['download_path'] = download_path
-
-
-def _cleanup_file(file_path):
-    """
-    Remove arquivo após delay.
-    """
-    try:
-        if Path(file_path).exists():
-            Path(file_path).unlink()
-            print(f"Arquivo removido: {file_path}")
     except Exception as e:
-        print(f"Erro ao remover arquivo {file_path}: {e}")
+        return JsonResponse({
+            'valid': False,
+            'error': 'Erro ao validar URL'
+        })
+
+
+def about(request):
+    """
+    Página sobre o BaixaFy Desktop
+    """
+    app_version = AppSettings.get_setting('app_version', '1.0.0')
+    
+    context = {
+        'app_version': app_version,
+    }
+    
+    return render(request, 'core/about.html', context)
