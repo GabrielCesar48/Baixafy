@@ -1,0 +1,59 @@
+===============================================
+🎵 BaixaFy v1.0 - Baixador de Músicas do Spotify
+===============================================
+
+📋 DESCRIÇÃO:
+BaixaFy é um software que permite baixar músicas e playlists
+do Spotify em formato MP3 de alta qualidade (320kbps).
+
+🚀 COMO USAR:
+
+1. INICIAR O PROGRAMA:
+   • Clique duas vezes em "BaixaFy_Pro.exe"
+   • Aguarde a interface carregar
+
+2. BAIXAR MÚSICA/PLAYLIST:
+   • Cole o link do Spotify no campo "URL"
+   • Escolha a pasta onde salvar os arquivos
+   • Clique no botão "Baixar"
+   • Aguarde o download concluir
+
+3. TIPOS DE LINK SUPORTADOS:
+   ✅ Música individual: https://open.spotify.com/track/...
+   ✅ Playlist completa: https://open.spotify.com/playlist/...
+   ✅ Álbum completo: https://open.spotify.com/album/...
+
+📋 REQUISITOS:
+• Windows 10/11
+• Conexão com internet
+• Espaço em disco para as músicas
+
+⚠️ IMPORTANTE:
+• NÃO mova ou delete as pastas "venv_portable" e "ffmpeg-7.1.1"
+• Mantenha todos os arquivos na mesma pasta
+• Use apenas links válidos do Spotify
+• Respeite os direitos autorais das músicas
+
+🐛 SOLUCIONANDO PROBLEMAS:
+
+PROBLEMA: "Arquivo não encontrado"
+SOLUÇÃO: Certifique-se que todas as pastas estão presentes
+
+PROBLEMA: "Erro de conexão"
+SOLUÇÃO: Verifique sua internet e tente novamente
+
+PROBLEMA: "Link inválido"
+SOLUÇÃO: Use apenas links diretos do Spotify
+
+PROBLEMA: Interface não abre
+SOLUÇÃO: Execute como Administrador
+
+📞 SUPORTE:
+Em caso de problemas, entre em contato fornecendo:
+• Versão do Windows
+• Link que tentou baixar
+• Mensagem de erro completa
+
+===============================================
+Desenvolvido com ❤️ | BaixaFy v1.0 | 2025
+===============================================
