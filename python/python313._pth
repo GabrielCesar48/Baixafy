@@ -1,6 +1,6 @@
 python313.zip
-.
-Scripts
 Lib\site-packages
+.
 
+# Adicione estas linhas:
 import site
